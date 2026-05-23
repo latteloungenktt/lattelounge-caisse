@@ -563,62 +563,72 @@ function printReceipt(){
     margin: 0;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { font-weight: 900 !important; }
   body {
     font-family: 'Courier New', Courier, monospace;
-    font-size: 11px;
+    font-size: 14px;
+    font-weight: 900;
     width: 80mm;
     max-width: 80mm;
     padding: 4mm 4mm;
     background: #fff;
     color: #000;
-    line-height: 1.4;
+    line-height: 1.6;
+    -webkit-print-color-adjust: exact;
   }
   .receipt-header {
     text-align: center;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
   .receipt-header .name {
-    font-size: 16px;
-    font-weight: bold;
+    font-size: 22px;
+    font-weight: 900;
     letter-spacing: 2px;
     text-transform: uppercase;
   }
   .receipt-header .sub {
-    font-size: 10px;
-    margin-top: 2px;
+    font-size: 13px;
+    font-weight: 900;
+    margin-top: 3px;
   }
-  .divider-double { border-top: 2px double #000; margin: 5px 0; }
-  .divider-single { border-top: 1px solid #000; margin: 4px 0; }
-  .divider-dash   { border-top: 1px dashed #000; margin: 4px 0; }
-  .info-row { font-size: 10px; margin: 2px 0; }
+  .divider-double { border-top: 4px double #000; margin: 6px 0; }
+  .divider-single { border-top: 3px solid #000; margin: 5px 0; }
+  .divider-dash   { border-top: 2px dashed #000; margin: 5px 0; }
+  .info-row { font-size: 13px; font-weight: 900; margin: 3px 0; }
   .items-header {
     display: flex;
     justify-content: space-between;
-    font-size: 10px;
-    font-weight: bold;
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
   }
   .item-row {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    font-size: 11px;
-    margin: 3px 0;
+    font-size: 14px;
+    font-weight: 900;
+    margin: 4px 0;
   }
-  .item-name { flex: 1; padding-right: 4px; word-break: break-word; }
-  .item-qty  { width: 20px; text-align: center; }
-  .item-price{ width: 50px; text-align: right; white-space: nowrap; }
+  .item-name { flex: 1; padding-right: 4px; word-break: break-word; font-weight: 900; }
+  .item-qty  { width: 24px; text-align: center; font-weight: 900; }
+  .item-price{ width: 55px; text-align: right; white-space: nowrap; font-weight: 900; }
   .total-row {
     display: flex;
     justify-content: space-between;
-    font-size: 13px;
-    font-weight: bold;
-    margin: 4px 0;
+    font-size: 18px;
+    font-weight: 900;
+    margin: 5px 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
   }
   .footer {
     text-align: center;
-    font-size: 10px;
-    margin-top: 6px;
-    line-height: 1.6;
+    font-size: 13px;
+    font-weight: 900;
+    margin-top: 8px;
+    line-height: 1.8;
   }
   @media print {
     body { width: 80mm; }
