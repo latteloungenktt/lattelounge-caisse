@@ -552,106 +552,34 @@ function validate(){
 function closeModal(){ document.getElementById('modal').classList.remove('open'); }
 function newOrder(){ panier={}; renderOrder(); closeModal(); }
 
-function printReceipt(){
-  const text=document.getElementById('receiptText').textContent;
-  const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html>
+function buildReceiptPage(copyLabel, footerText){
+  return `<!DOCTYPE html>
 <html><head><title>Reçu Latte Lounge</title>
 <style>
-  @page {
-    size: 80mm auto;
-    margin: 0;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
   @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap');
-  * { font-weight: 900 !important; -webkit-text-stroke: 0.5px #000; }
-  body {
-    font-family: 'Nunito', 'Courier New', Courier, monospace;
-    font-size: 14px;
-    font-weight: 900;
-    width: 80mm;
-    max-width: 80mm;
-    padding: 4mm 4mm;
-    background: #fff;
-    color: #000;
-    line-height: 1.6;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  .receipt-header {
-    text-align: center;
-    margin-bottom: 8px;
-  }
-  .receipt-header .name {
-    font-size: 22px;
-    font-weight: 900;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    -webkit-text-stroke: 1px #000;
-  }
-  .receipt-header .sub {
-    font-size: 13px;
-    font-weight: 900;
-    margin-top: 3px;
-  }
-  .divider-double { border-top: 4px double #000; margin: 6px 0; }
-  .divider-single { border-top: 3px solid #000; margin: 5px 0; }
-  .divider-dash   { border-top: 2px dashed #000; margin: 5px 0; }
-  .info-row { font-size: 13px; font-weight: 900; margin: 3px 0; }
-  .items-header {
-    display: flex;
-    justify-content: space-between;
-    font-size: 13px;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    -webkit-text-stroke: 0.8px #000;
-  }
-  .item-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    font-size: 14px;
-    font-weight: 900;
-    margin: 4px 0;
-  }
-  .item-name { flex: 1; padding-right: 4px; word-break: break-word; font-weight: 900; }
-  .item-qty  { width: 24px; text-align: center; font-weight: 900; }
-  .item-price{ width: 55px; text-align: right; white-space: nowrap; font-weight: 900; }
-  .total-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 18px;
-    font-weight: 900;
-    margin: 5px 0;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    -webkit-text-stroke: 1px #000;
-  }
-  .footer {
-    text-align: center;
-    font-size: 13px;
-    font-weight: 900;
-    margin-top: 8px;
-    line-height: 1.8;
-  }
   @page { size: 80mm auto; margin: 0; }
-  html, body { height: auto !important; overflow: hidden; }
-  @media print {
-    html, body { height: auto !important; overflow: hidden; }
-    * { -webkit-text-stroke: 0.5px #000 !important; }
-    .total-row { -webkit-text-stroke: 1px #000 !important; }
-    div:last-child { page-break-after: avoid !important; }
-  }
-</style>
-</head>
-<body>
-
-<!-- COPIE CLIENT -->
-<div style="padding:4mm 4mm;">
-  <div style="text-align:center;margin-bottom:8px;">
-    <span style="border:2px solid #000;padding:3px 10px;font-size:11px;letter-spacing:3px;text-transform:uppercase;">✂ COPIE CLIENT</span>
-  </div>
+  html,body{height:auto!important;overflow:hidden;}
+  * { font-weight: 900 !important; -webkit-text-stroke: 0.5px #000; box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Nunito','Courier New',Courier,monospace; font-size:14px; font-weight:900; width:80mm; max-width:80mm; padding:4mm 4mm; background:#fff; color:#000; line-height:1.6; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .copy-label-wrap{text-align:center;margin-bottom:8px;}
+  .copy-label{border:2px solid #000;padding:3px 10px;font-size:11px;letter-spacing:3px;text-transform:uppercase;}
+  .receipt-header{text-align:center;margin-bottom:8px;}
+  .receipt-header .name{font-size:22px;font-weight:900;letter-spacing:2px;text-transform:uppercase;-webkit-text-stroke:1px #000;}
+  .receipt-header .sub{font-size:13px;font-weight:900;margin-top:3px;}
+  .divider-double{border-top:4px double #000;margin:6px 0;}
+  .divider-single{border-top:3px solid #000;margin:5px 0;}
+  .divider-dash{border-top:2px dashed #000;margin:5px 0;}
+  .info-row{font-size:13px;font-weight:900;margin:3px 0;}
+  .items-header{display:flex;justify-content:space-between;font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:1px;-webkit-text-stroke:0.8px #000;}
+  .item-row{display:flex;justify-content:space-between;align-items:flex-start;font-size:14px;font-weight:900;margin:4px 0;}
+  .item-name{flex:1;padding-right:4px;word-break:break-word;font-weight:900;}
+  .item-qty{width:24px;text-align:center;font-weight:900;}
+  .item-price{width:55px;text-align:right;white-space:nowrap;font-weight:900;}
+  .total-row{display:flex;justify-content:space-between;font-size:18px;font-weight:900;margin:5px 0;text-transform:uppercase;letter-spacing:1px;-webkit-text-stroke:1px #000;}
+  .footer{text-align:center;font-size:13px;font-weight:900;margin-top:8px;line-height:1.8;}
+  @media print{*{-webkit-text-stroke:0.5px #000!important;}.total-row{-webkit-text-stroke:1px #000!important;}div:last-child{page-break-after:avoid!important;}}
+</style></head><body>
+  <div class="copy-label-wrap"><span class="copy-label">${copyLabel}</span></div>
   <div class="receipt-header">
     <div class="name">LATTE LOUNGE</div>
     <div class="sub">Route de Nouadhibou · Nouakchott</div>
@@ -660,35 +588,25 @@ function printReceipt(){
   <div class="divider-double"></div>
   ${buildReceiptHTML()}
   <div class="divider-double"></div>
-  <div class="footer">
-    Merci de votre visite !<br>
-    À bientôt chez Latte Lounge ☕<br>
-    *** Conservez ce reçu ***
-  </div>
-</div>
+  <div class="footer">${footerText}</div>
+</body></html>`;
+}
 
-<!-- SÉPARATEUR DÉCOUPE -->
-<div style="text-align:center;border-top:3px dashed #000;padding-top:6px;margin:4px 0;font-size:13px;letter-spacing:4px;">✂ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─</div>
-
-<!-- COPIE RESTAURANT -->
-<div style="padding:4mm 4mm;">
-  <div style="text-align:center;margin-bottom:8px;">
-    <span style="border:2px solid #000;padding:3px 10px;font-size:11px;letter-spacing:3px;text-transform:uppercase;">⚑ COPIE RESTAURANT</span>
-  </div>
-  <div class="receipt-header">
-    <div class="name">LATTE LOUNGE</div>
-    <div class="sub">Route de Nouadhibou · Nouakchott</div>
-    <div class="sub">Tél : +222 27 17 61 91</div>
-  </div>
-  <div class="divider-double"></div>
-  ${buildReceiptHTML()}
-  <div class="divider-double"></div>
-  <div class="footer">*** COPIE RESTAURANT ***</div>
-</div>
-
-</body></html>`);
-  w.document.close();
-  setTimeout(()=>{ w.focus(); w.print(); }, 600);
+function printReceipt(){
+  // COPIE CLIENT — première fenêtre
+  const w1=window.open('','_blank');
+  w1.document.write(buildReceiptPage('✂ COPIE CLIENT','Merci de votre visite !<br>À bientôt chez Latte Lounge ☕<br>*** Conservez ce reçu ***'));
+  w1.document.close();
+  setTimeout(()=>{
+    w1.focus(); w1.print();
+    // COPIE RESTAURANT — deuxième fenêtre après 2 secondes
+    setTimeout(()=>{
+      const w2=window.open('','_blank');
+      w2.document.write(buildReceiptPage('⚑ COPIE RESTAURANT','*** COPIE RESTAURANT ***'));
+      w2.document.close();
+      setTimeout(()=>{ w2.focus(); w2.print(); }, 600);
+    }, 2000);
+  }, 600);
 }
 
 function buildReceiptHTML(){
