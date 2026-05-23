@@ -635,16 +635,23 @@ function printReceipt(){
     margin-top: 8px;
     line-height: 1.8;
   }
+  @page { size: 80mm auto; margin: 0; }
+  html, body { height: auto !important; overflow: hidden; }
   @media print {
+    html, body { height: auto !important; overflow: hidden; }
     * { -webkit-text-stroke: 0.5px #000 !important; }
     .total-row { -webkit-text-stroke: 1px #000 !important; }
-  }
-  @media print {
-    body { width: 80mm; }
+    div:last-child { page-break-after: avoid !important; }
   }
 </style>
 </head>
 <body>
+
+<!-- COPIE CLIENT -->
+<div style="padding:4mm 4mm;">
+  <div style="text-align:center;margin-bottom:8px;">
+    <span style="border:2px solid #000;padding:3px 10px;font-size:11px;letter-spacing:3px;text-transform:uppercase;">✂ COPIE CLIENT</span>
+  </div>
   <div class="receipt-header">
     <div class="name">LATTE LOUNGE</div>
     <div class="sub">Route de Nouadhibou · Nouakchott</div>
@@ -656,12 +663,32 @@ function printReceipt(){
   <div class="footer">
     Merci de votre visite !<br>
     À bientôt chez Latte Lounge ☕<br>
-    <br>
     *** Conservez ce reçu ***
   </div>
+</div>
+
+<!-- SÉPARATEUR DÉCOUPE -->
+<div style="text-align:center;border-top:3px dashed #000;padding-top:6px;margin:4px 0;font-size:13px;letter-spacing:4px;">✂ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─</div>
+
+<!-- COPIE RESTAURANT -->
+<div style="padding:4mm 4mm;">
+  <div style="text-align:center;margin-bottom:8px;">
+    <span style="border:2px solid #000;padding:3px 10px;font-size:11px;letter-spacing:3px;text-transform:uppercase;">⚑ COPIE RESTAURANT</span>
+  </div>
+  <div class="receipt-header">
+    <div class="name">LATTE LOUNGE</div>
+    <div class="sub">Route de Nouadhibou · Nouakchott</div>
+    <div class="sub">Tél : +222 27 17 61 91</div>
+  </div>
+  <div class="divider-double"></div>
+  ${buildReceiptHTML()}
+  <div class="divider-double"></div>
+  <div class="footer">*** COPIE RESTAURANT ***</div>
+</div>
+
 </body></html>`);
   w.document.close();
-  setTimeout(()=>{ w.focus(); w.print(); }, 400);
+  setTimeout(()=>{ w.focus(); w.print(); }, 600);
 }
 
 function buildReceiptHTML(){
