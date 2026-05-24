@@ -336,6 +336,9 @@
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
 <script>
 // ── PASSWORD ──
 const PASSWORD = 'Mauritanie2026';
@@ -445,23 +448,23 @@ let historique = [];
 try { historique = JSON.parse(localStorage.getItem('latte_histo')||'[]').filter(o=>o.date===todayKey()); } catch(e) { historique=[]; }
 function saveHisto() { localStorage.setItem('latte_histo', JSON.stringify(historique)); }
 
-// ── SERVEUSE ORDERS FIREBASE ──
+// ── SERVEUSE ORDERS ──
 function listenServeuseOrders(){
-  import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(({initializeApp})=>{
-    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").then(({getDatabase,ref,onChildAdded,remove})=>{
-      const fbApp=initializeApp({apiKey:"AIzaSyBZnorgx0FgFzQk-ynMWLWAGblA1797wL8",authDomain:"latte-lounge-caisse.firebaseapp.com",databaseURL:"https://latte-lounge-caisse-default-rtdb.europe-west1.firebasedatabase.app",projectId:"latte-lounge-caisse",storageBucket:"latte-lounge-caisse.firebasestorage.app",messagingSenderId:"864095614648",appId:"1:864095614648:web:4d827e02772b5b73fca64d"},'serveuse');
-      const db=getDatabase(fbApp);
-      const servRef=ref(db,'commandes_serveuse');
-      window._serveuseDb=db; window._serveuseRef=ref; window._serveuseRemove=remove;
-      onChildAdded(servRef,snap=>{
-        const order={...snap.val(),_key:snap.key};
-        showServeuseNotif(order,snap.key);
-      });
+  try{
+    const fbConfig={apiKey:"AIzaSyBZnorgx0FgFzQk-ynMWLWAGblA1797wL8",authDomain:"latte-lounge-caisse.firebaseapp.com",databaseURL:"https://latte-lounge-caisse-default-rtdb.europe-west1.firebasedatabase.app",projectId:"latte-lounge-caisse",storageBucket:"latte-lounge-caisse.firebasestorage.app",messagingSenderId:"864095614648",appId:"1:864095614648:web:4d827e02772b5b73fca64d"};
+    // Use compat SDK - check if already initialized
+    let fbApp;
+    try{ fbApp=firebase.app('serveuse'); }
+    catch(e){ fbApp=firebase.initializeApp(fbConfig,'serveuse'); }
+    const db=firebase.database(fbApp);
+    db.ref('commandes_serveuse').on('child_added',snap=>{
+      const order={...snap.val(),_key:snap.key};
+      showServeuseNotif(order,snap.key,db);
     });
-  });
+  }catch(e){console.error('Serveuse listener error:',e);}
 }
 
-function showServeuseNotif(order,key){
+function showServeuseNotif(order,key,db){
   // Play alert sound
   playAlert();
   // Show modal
@@ -490,12 +493,12 @@ function showServeuseNotif(order,key){
   document.body.appendChild(modal);
 }
 
-window.supprimerServeuseOrder=async function(key){
+window.supprimerServeuseOrder=function(key){
   try{
-    if(window._serveuseDb&&window._serveuseRef&&window._serveuseRemove){
-      await window._serveuseRemove(window._serveuseRef(window._serveuseDb,`commandes_serveuse/${key}`));
-    }
-  }catch(e){console.log(e);}
+    const fbApp=firebase.app('serveuse');
+    const db=firebase.database(fbApp);
+    db.ref('commandes_serveuse/'+key).remove();
+  }catch(e){console.log('Delete error:',e);}
 };
 
 window.imprimerServeuse=function(order,modal,key){
