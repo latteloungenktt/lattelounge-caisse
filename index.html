@@ -550,41 +550,54 @@ window.imprimerServeuseCommande=function(){
     @page{size:80mm auto;margin:0;}
     *{font-weight:900!important;-webkit-text-stroke:0.5px #000;box-sizing:border-box;margin:0;padding:0;}
     html,body{height:auto!important;overflow:hidden;}
-    body{font-family:'Nunito','Courier New',monospace;font-size:14px;width:80mm;max-width:80mm;padding:4mm;background:#fff;color:#000;line-height:1.6;-webkit-print-color-adjust:exact;}
-    .header{text-align:center;margin-bottom:8px;}
-    .name{font-size:20px;letter-spacing:2px;text-transform:uppercase;-webkit-text-stroke:1px #000;}
-    .sub{font-size:12px;margin-top:2px;}
+    body{font-family:'Nunito','Courier New',monospace;font-size:14px;width:80mm;max-width:80mm;padding:4mm;background:#fff;color:#000;line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .receipt-header{text-align:center;margin-bottom:8px;}
+    .receipt-header .name{font-size:22px;font-weight:900;letter-spacing:2px;text-transform:uppercase;-webkit-text-stroke:1px #000;}
+    .receipt-header .sub{font-size:13px;font-weight:900;margin-top:3px;}
     .serveuse-line{text-align:center;border:3px solid #000;padding:6px;margin:8px 0;font-size:15px;letter-spacing:1px;}
-    .divider-d{border-top:4px double #000;margin:6px 0;}
-    .divider-s{border-top:3px solid #000;margin:5px 0;}
+    .divider-double{border-top:4px double #000;margin:6px 0;}
+    .divider-single{border-top:3px solid #000;margin:5px 0;}
     .divider-dash{border-top:2px dashed #000;margin:5px 0;}
-    .info{font-size:13px;margin:3px 0;}
-    .items-hdr{display:flex;justify-content:space-between;font-size:13px;text-transform:uppercase;-webkit-text-stroke:0.8px #000;}
-    .item-row{display:flex;justify-content:space-between;font-size:14px;margin:4px 0;}
-    .item-name{flex:1;padding-right:4px;word-break:break-word;}
-    .item-qty{width:24px;text-align:center;}
-    .item-price{width:55px;text-align:right;white-space:nowrap;}
-    .total-row{display:flex;justify-content:space-between;font-size:18px;margin:5px 0;text-transform:uppercase;-webkit-text-stroke:1px #000;}
+    .info-row{font-size:13px;font-weight:900;margin:3px 0;}
+    .items-header{display:flex;justify-content:space-between;font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:1px;-webkit-text-stroke:0.8px #000;}
+    .item-row{display:flex;justify-content:space-between;align-items:flex-start;font-size:14px;font-weight:900;margin:4px 0;}
+    .item-name{flex:1;padding-right:4px;word-break:break-word;font-weight:900;}
+    .item-qty{width:24px;text-align:center;font-weight:900;}
+    .item-price{width:55px;text-align:right;white-space:nowrap;font-weight:900;}
+    .total-row{display:flex;justify-content:space-between;font-size:18px;font-weight:900;margin:5px 0;text-transform:uppercase;letter-spacing:1px;-webkit-text-stroke:1px #000;}
+    .footer{text-align:center;font-size:13px;font-weight:900;margin-top:8px;line-height:1.8;}
     .notes-box{border:2px dashed #000;padding:6px;margin:6px 0;font-size:13px;}
-    @media print{div:last-child{page-break-after:avoid!important;}}
+    @media print{*{-webkit-text-stroke:0.5px #000!important;}.total-row{-webkit-text-stroke:1px #000!important;}div:last-child{page-break-after:avoid!important;}}
   </style></head><body>
-  <div class="header"><div class="name">LATTE LOUNGE</div><div class="sub">Route de Nouadhibou · Nouakchott</div></div>
+  <div class="receipt-header">
+    <div class="name">LATTE LOUNGE</div>
+    <div class="sub">Route de Nouadhibou · Nouakchott</div>
+    <div class="sub">Tél : +222 27 17 61 91</div>
+  </div>
   <div class="serveuse-line">👩‍💼 SERVEUSE : ${order.serveuse}</div>
-  <div class="divider-d"></div>
-  <div class="info">Date  : ${date}</div>
-  <div class="info">Heure : ${time}</div>
+  <div class="divider-double"></div>
+  <div class="info-row">Date  : ${date}</div>
+  <div class="info-row">Heure : ${time}</div>
   <div class="divider-dash"></div>
-  <div class="items-hdr"><span>Article</span><span>Qté</span><span>Prix</span></div>
+  <div class="items-header"><span>Article</span><span>Qté</span><span>Prix</span></div>
   <div class="divider-dash"></div>
   ${itemsHtml}
-  <div class="divider-s"></div>
+  <div class="divider-single"></div>
   <div class="total-row"><span>TOTAL</span><span>${order.total} MRU</span></div>
-  <div class="divider-d"></div>
-  ${order.notes?`<div class="notes-box">📝 NOTE : ${order.notes}</div>`:''}
+  <div class="divider-double"></div>
+  ${order.notes?`<div class="notes-box">📝 NOTE : ${order.notes}</div><div class="divider-double"></div>`:''}
+  <div class="footer">
+    Merci de votre visite !<br>
+    À bientôt chez Latte Lounge ☕<br>
+    *** Conservez ce reçu ***<br><br>
+    <div style="margin-top:8px;">
+      <div style="font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">📱 Commandez en ligne</div>
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://lattelounge-client.pages.dev" width="120" height="120" style="display:block;margin:0 auto;border:3px solid #000;border-radius:4px;">
+    </div>
+  </div>
   </body></html>`);
   w.document.close();
   setTimeout(()=>{w.focus();w.print();},500);
-  // Fermer panel et supprimer
   document.getElementById('serveusePanel').style.display='none';
   supprimerServeuseOrder(key);
   _currentServeuseOrder=null;_currentServeuseKey=null;
