@@ -577,11 +577,22 @@ window.imprimerServeuseCommande=function(){
     Merci de votre visite !<br>
     À bientôt chez Latte Lounge ☕<br>
     *** Conservez ce reçu ***<br><br>
-    <div style="margin-top:8px;">
+    <div style="text-align:center;margin-top:8px;">
       <div style="font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">📱 Commandez en ligne</div>
-      <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://lattelounge-client.pages.dev" width="120" height="120" style="display:block;margin:0 auto;border:3px solid #000;border-radius:4px;">
+      <div id="qrcode" style="display:inline-block;border:3px solid #000;border-radius:4px;padding:4px;background:#fff;"></div>
     </div>
   </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+  <script>
+    window.onload=function(){
+      new QRCode(document.getElementById('qrcode'),{
+        text:'https://lattelounge-client.pages.dev',
+        width:110,height:110,
+        colorDark:'#000000',colorLight:'#ffffff',
+        correctLevel:QRCode.CorrectLevel.H
+      });
+    };
+  <\/script>
   </body></html>`);
   w.document.close();
   setTimeout(()=>{w.focus();w.print();},1200);
@@ -700,9 +711,27 @@ function validate(){
 function closeModal(){ document.getElementById('modal').classList.remove('open'); }
 function newOrder(){ panier={}; renderOrder(); closeModal(); }
 
-function buildReceiptPage(copyLabel, footerText){
+function buildReceiptPage(copyLabel, footerText, withQR=false){
+  const qrScript = withQR ? `<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>` : '';
+  const qrDiv = withQR ? `
+  <div style="text-align:center;margin-top:10px;">
+    <div style="font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">📱 Commandez en ligne</div>
+    <div id="qrcode" style="display:inline-block;border:3px solid #000;border-radius:4px;padding:4px;background:#fff;"></div>
+  </div>
+  <script>
+    window.onload=function(){
+      new QRCode(document.getElementById('qrcode'),{
+        text:'https://lattelounge-client.pages.dev',
+        width:110,height:110,
+        colorDark:'#000000',colorLight:'#ffffff',
+        correctLevel:QRCode.CorrectLevel.H
+      });
+    };
+  <\/script>` : '';
+
   return `<!DOCTYPE html>
 <html><head><title>Reçu Latte Lounge</title>
+${qrScript}
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap');
   @page { size: 80mm auto; margin: 0; }
@@ -737,24 +766,26 @@ function buildReceiptPage(copyLabel, footerText){
   ${buildReceiptHTML()}
   <div class="divider-double"></div>
   <div class="footer">${footerText}</div>
+  ${qrDiv}
 </body></html>`;
 }
 
 function printReceipt(){
-  // COPIE CLIENT — première fenêtre
+  // COPIE CLIENT avec QR code
   const w1=window.open('','_blank');
-  w1.document.write(buildReceiptPage('✂ COPIE CLIENT','Merci de votre visite !<br>À bientôt chez Latte Lounge ☕<br>*** Conservez ce reçu ***<br><br><div style="text-align:center;margin-top:8px;"><div style="font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">📱 Commandez en ligne</div><img src=\'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://lattelounge-client.pages.dev\' width=\'120\' height=\'120\' style=\'display:block;margin:0 auto;border:3px solid #000;border-radius:4px;\'></div>'));
+  w1.document.write(buildReceiptPage('✂ COPIE CLIENT','Merci de votre visite !<br>À bientôt chez Latte Lounge ☕<br>*** Conservez ce reçu ***', true));
   w1.document.close();
+  // Délai plus long pour laisser le QR code se générer
   setTimeout(()=>{
     w1.focus(); w1.print();
-    // COPIE RESTAURANT — deuxième fenêtre après 2 secondes
+    // COPIE RESTAURANT sans QR
     setTimeout(()=>{
       const w2=window.open('','_blank');
-      w2.document.write(buildReceiptPage('⚑ COPIE RESTAURANT','*** COPIE RESTAURANT ***'));
+      w2.document.write(buildReceiptPage('⚑ COPIE RESTAURANT','*** COPIE RESTAURANT ***', false));
       w2.document.close();
       setTimeout(()=>{ w2.focus(); w2.print(); }, 600);
     }, 2000);
-  }, 600);
+  }, 1500);
 }
 
 function buildReceiptHTML(){
