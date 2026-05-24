@@ -346,6 +346,7 @@ function checkPwd() {
     document.getElementById('loginScreen').style.transition = 'opacity .4s';
     setTimeout(() => document.getElementById('loginScreen').style.display = 'none', 400);
     sessionStorage.setItem('caisse_auth', '1');
+  listenServeuseOrders();
   } else {
     const err = document.getElementById('loginError');
     err.textContent = '❌ Mot de passe incorrect';
@@ -369,6 +370,7 @@ function logout() {
 // Auto-login if session active
 if (sessionStorage.getItem('caisse_auth') === '1') {
   document.getElementById('loginScreen').style.display = 'none';
+  listenServeuseOrders();
 }
 
 // ── MENU DATA ──
@@ -392,6 +394,8 @@ const MENU = {
   "🌿 Mojitos & Froides": [
     ["Mojito Classic",150],["Mojito Ananas",150],
     ["Mojito Menthe",150],["Mojito Fraise",150],["Eau Gazeuse",80],
+    ["Eau Minérale",20],["Grande Eau Minérale",30],
+    ["Coca Cola",50],["Fanta",50],["Sprite",50],
   ],
   "🍨 Desserts": [
     ["Salade De Fruit",150],["Banana Split",150],["Tiramisu",150],["Granola",150],
@@ -440,6 +444,113 @@ const todayKey = () => new Date().toISOString().slice(0,10);
 let historique = [];
 try { historique = JSON.parse(localStorage.getItem('latte_histo')||'[]').filter(o=>o.date===todayKey()); } catch(e) { historique=[]; }
 function saveHisto() { localStorage.setItem('latte_histo', JSON.stringify(historique)); }
+
+// ── SERVEUSE ORDERS FIREBASE ──
+function listenServeuseOrders(){
+  import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(({initializeApp})=>{
+    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js").then(({getDatabase,ref,onChildAdded,remove})=>{
+      const fbApp=initializeApp({apiKey:"AIzaSyBZnorgx0FgFzQk-ynMWLWAGblA1797wL8",authDomain:"latte-lounge-caisse.firebaseapp.com",databaseURL:"https://latte-lounge-caisse-default-rtdb.europe-west1.firebasedatabase.app",projectId:"latte-lounge-caisse",storageBucket:"latte-lounge-caisse.firebasestorage.app",messagingSenderId:"864095614648",appId:"1:864095614648:web:4d827e02772b5b73fca64d"},'serveuse');
+      const db=getDatabase(fbApp);
+      const servRef=ref(db,'commandes_serveuse');
+      window._serveuseDb=db; window._serveuseRef=ref; window._serveuseRemove=remove;
+      onChildAdded(servRef,snap=>{
+        const order={...snap.val(),_key:snap.key};
+        showServeuseNotif(order,snap.key);
+      });
+    });
+  });
+}
+
+function showServeuseNotif(order,key){
+  // Play alert sound
+  playAlert();
+  // Show modal
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);animation:popIn .3s ease;';
+  const itemsHtml=(order.items||[]).map(it=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border);color:var(--muted)"><span>${it.name} × ${it.qty}</span><span>${it.subtotal} MRU</span></div>`).join('');
+  modal.innerHTML=`
+    <div style="background:var(--surface);border:2px solid var(--gold);border-radius:20px;width:100%;max-width:400px;overflow:hidden;animation:popIn .3s cubic-bezier(.34,1.56,.64,1)">
+      <div style="background:linear-gradient(135deg,#1a1200,#2d1f00);padding:16px 20px;border-bottom:1px solid var(--gold);">
+        <div style="font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">🔔 Nouvelle commande serveuse</div>
+        <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);">👩‍💼 ${order.serveuse}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${order.date} · ${order.time}</div>
+      </div>
+      <div style="padding:14px 20px;max-height:260px;overflow-y:auto;">
+        ${itemsHtml}
+        <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;color:var(--gold);padding:8px 0;margin-top:4px;">
+          <span>TOTAL</span><span>${order.total} MRU</span>
+        </div>
+        ${order.notes?`<div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.2);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--gold2);margin-top:6px;">📝 ${order.notes}</div>`:''}
+      </div>
+      <div style="display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--border);">
+        <button onclick="imprimerServeuse(${JSON.stringify(order).replace(/"/g,'&quot;')}, this.closest('[style]'), '${key}')" style="flex:2;padding:13px;background:var(--gold);border:none;border-radius:12px;color:#000;font-family:'Playfair Display',serif;font-size:15px;font-weight:700;cursor:pointer;">🖨 Imprimer le ticket</button>
+        <button onclick="this.closest('[style]').remove();supprimerServeuseOrder('${key}')" style="flex:1;padding:13px;background:transparent;border:1px solid var(--border);border-radius:12px;color:var(--muted);font-size:13px;cursor:pointer;">✖ Ignorer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+window.supprimerServeuseOrder=async function(key){
+  try{
+    if(window._serveuseDb&&window._serveuseRef&&window._serveuseRemove){
+      await window._serveuseRemove(window._serveuseRef(window._serveuseDb,`commandes_serveuse/${key}`));
+    }
+  }catch(e){console.log(e);}
+};
+
+window.imprimerServeuse=function(order,modal,key){
+  const now=new Date(),pad=s=>String(s).padStart(2,'0');
+  const date=order.date||`${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
+  const time=order.time||`${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const w=window.open('','_blank');
+  let itemsHtml=order.items.map(it=>`<div class="item-row"><span class="item-name">${it.name}</span><span class="item-qty">×${it.qty}</span><span class="item-price">${it.subtotal} MRU</span></div>`).join('');
+  w.document.write(`<!DOCTYPE html><html><head><title>Ticket Serveuse</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap');
+    @page{size:80mm auto;margin:0;}
+    *{font-weight:900!important;-webkit-text-stroke:0.5px #000;box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:auto!important;overflow:hidden;}
+    body{font-family:'Nunito','Courier New',monospace;font-size:14px;width:80mm;max-width:80mm;padding:4mm;background:#fff;color:#000;line-height:1.6;-webkit-print-color-adjust:exact;}
+    .header{text-align:center;margin-bottom:8px;}
+    .name{font-size:20px;letter-spacing:2px;text-transform:uppercase;-webkit-text-stroke:1px #000;}
+    .sub{font-size:12px;margin-top:2px;}
+    .serveuse-line{text-align:center;border:2px solid #000;padding:5px;margin:8px 0;font-size:14px;letter-spacing:1px;}
+    .divider-d{border-top:4px double #000;margin:6px 0;}
+    .divider-s{border-top:3px solid #000;margin:5px 0;}
+    .divider-dash{border-top:2px dashed #000;margin:5px 0;}
+    .info{font-size:13px;margin:3px 0;}
+    .items-hdr{display:flex;justify-content:space-between;font-size:13px;text-transform:uppercase;letter-spacing:1px;-webkit-text-stroke:0.8px #000;}
+    .item-row{display:flex;justify-content:space-between;font-size:14px;margin:4px 0;}
+    .item-name{flex:1;padding-right:4px;word-break:break-word;}
+    .item-qty{width:24px;text-align:center;}
+    .item-price{width:55px;text-align:right;white-space:nowrap;}
+    .total-row{display:flex;justify-content:space-between;font-size:18px;margin:5px 0;text-transform:uppercase;-webkit-text-stroke:1px #000;}
+    .notes-box{border:2px dashed #000;padding:6px;margin:6px 0;font-size:13px;}
+    @media print{*{-webkit-text-stroke:0.5px #000!important;}.total-row{-webkit-text-stroke:1px #000!important;}div:last-child{page-break-after:avoid!important;}}
+  </style></head><body>
+  <div class="header">
+    <div class="name">LATTE LOUNGE</div>
+    <div class="sub">Route de Nouadhibou · Nouakchott</div>
+  </div>
+  <div class="serveuse-line">👩‍💼 SERVEUSE : ${order.serveuse}</div>
+  <div class="divider-d"></div>
+  <div class="info">Date  : ${date}</div>
+  <div class="info">Heure : ${time}</div>
+  <div class="divider-dash"></div>
+  <div class="items-hdr"><span>Article</span><span>Qté</span><span>Prix</span></div>
+  <div class="divider-dash"></div>
+  ${itemsHtml}
+  <div class="divider-s"></div>
+  <div class="total-row"><span>TOTAL</span><span>${order.total} MRU</span></div>
+  <div class="divider-d"></div>
+  ${order.notes?`<div class="notes-box">📝 NOTE : ${order.notes}</div>`:''}
+  </body></html>`);
+  w.document.close();
+  setTimeout(()=>{w.focus();w.print();},500);
+  // Fermer le modal et supprimer l'ordre
+  if(modal)modal.remove();
+  supprimerServeuseOrder(key);
+};
 
 // ── CLOCK ──
 function updateClock() {
@@ -595,7 +706,7 @@ function buildReceiptPage(copyLabel, footerText){
 function printReceipt(){
   // COPIE CLIENT — première fenêtre
   const w1=window.open('','_blank');
-  w1.document.write(buildReceiptPage('✂ COPIE CLIENT','Merci de votre visite !<br>À bientôt chez Latte Lounge ☕<br>*** Conservez ce reçu ***'));
+  w1.document.write(buildReceiptPage('✂ COPIE CLIENT','Merci de votre visite !<br>À bientôt chez Latte Lounge ☕<br>*** Conservez ce reçu ***<br><br><div style="text-align:center;margin-top:8px;"><div style="font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">📱 Commandez en ligne</div><img src=\'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://lattelounge-client.pages.dev\' width=\'120\' height=\'120\' style=\'display:block;margin:0 auto;border:3px solid #000;border-radius:4px;\'></div>'));
   w1.document.close();
   setTimeout(()=>{
     w1.focus(); w1.print();
