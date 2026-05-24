@@ -570,9 +570,9 @@ window.imprimerServeuseCommande=function(){
     @media print{*{-webkit-text-stroke:0.5px #000!important;}.total-row{-webkit-text-stroke:1px #000!important;}div:last-child{page-break-after:avoid!important;}}
   </style></head><body>
   <div class="receipt-header">
-    <div class="name">LATTE LOUNGE</div>
-    <div class="sub">Route de Nouadhibou · Nouakchott</div>
-    <div class="sub">Tél : +222 27 17 61 91</div>
+    <div class="name" style="font-size:22px;font-weight:900;letter-spacing:2px;text-transform:uppercase;-webkit-text-stroke:1px #000;text-align:center;display:block;">LATTE LOUNGE</div>
+    <div class="sub" style="font-size:13px;font-weight:900;text-align:center;margin-top:3px;display:block;">Route de Nouadhibou · Nouakchott</div>
+    <div class="sub" style="font-size:13px;font-weight:900;text-align:center;margin-top:3px;display:block;">Tél : +222 27 17 61 91</div>
   </div>
   <div class="serveuse-line">👩‍💼 SERVEUSE : ${order.serveuse}</div>
   <div class="divider-double"></div>
@@ -597,8 +597,7 @@ window.imprimerServeuseCommande=function(){
   </div>
   </body></html>`);
   w.document.close();
-  setTimeout(()=>{w.focus();w.print();},500);
-  document.getElementById('serveusePanel').style.display='none';
+  setTimeout(()=>{w.focus();w.print();},1200);
   supprimerServeuseOrder(key);
   _currentServeuseOrder=null;_currentServeuseKey=null;
 };
