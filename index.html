@@ -336,6 +336,22 @@
   </div>
 </div>
 
+<!-- SERVEUSE NOTIFICATION PANEL -->
+<div id="serveusePanel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#161616;border:2px solid #C9A84C;border-radius:20px;width:100%;max-width:420px;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#1a1200,#2d1f00);padding:16px 20px;border-bottom:1px solid #C9A84C;">
+      <div style="font-size:11px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">🔔 Nouvelle commande serveuse</div>
+      <div id="servNom" style="font-family:'Playfair Display',serif;font-size:22px;color:#C9A84C;font-weight:700;"></div>
+      <div id="servTime" style="font-size:11px;color:#888;margin-top:2px;"></div>
+    </div>
+    <div id="servItems" style="padding:14px 20px;max-height:280px;overflow-y:auto;"></div>
+    <div style="display:flex;gap:8px;padding:14px 20px;border-top:1px solid #2A2A2A;">
+      <button onclick="imprimerServeuseCommande()" style="flex:2;padding:13px;background:#C9A84C;border:none;border-radius:12px;color:#000;font-family:'Playfair Display',serif;font-size:15px;font-weight:700;cursor:pointer;">🖨 Imprimer le ticket</button>
+      <button onclick="ignorerServeuseCommande()" style="flex:1;padding:13px;background:transparent;border:1px solid #2A2A2A;border-radius:12px;color:#888;font-size:13px;cursor:pointer;">✖ Ignorer</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -349,7 +365,7 @@ function checkPwd() {
     document.getElementById('loginScreen').style.transition = 'opacity .4s';
     setTimeout(() => document.getElementById('loginScreen').style.display = 'none', 400);
     sessionStorage.setItem('caisse_auth', '1');
-  listenServeuseOrders();
+    setTimeout(listenServeuseOrders, 500);
   } else {
     const err = document.getElementById('loginError');
     err.textContent = '❌ Mot de passe incorrect';
@@ -373,8 +389,13 @@ function logout() {
 // Auto-login if session active
 if (sessionStorage.getItem('caisse_auth') === '1') {
   document.getElementById('loginScreen').style.display = 'none';
-  listenServeuseOrders();
 }
+// Démarrer le listener serveuse après chargement complet
+window.addEventListener('load', function(){
+  if(sessionStorage.getItem('caisse_auth')==='1'){
+    setTimeout(listenServeuseOrders, 500);
+  }
+});
 
 // ── MENU DATA ──
 const MENU = {
@@ -450,63 +471,79 @@ function saveHisto() { localStorage.setItem('latte_histo', JSON.stringify(histor
 
 // ── SERVEUSE ORDERS ──
 function listenServeuseOrders(){
+  // Vérifier que Firebase compat est chargé
+  if(typeof firebase === 'undefined'){
+    console.error('Firebase non chargé !');
+    setTimeout(listenServeuseOrders, 500);
+    return;
+  }
   try{
-    const fbConfig={apiKey:"AIzaSyBZnorgx0FgFzQk-ynMWLWAGblA1797wL8",authDomain:"latte-lounge-caisse.firebaseapp.com",databaseURL:"https://latte-lounge-caisse-default-rtdb.europe-west1.firebasedatabase.app",projectId:"latte-lounge-caisse",storageBucket:"latte-lounge-caisse.firebasestorage.app",messagingSenderId:"864095614648",appId:"1:864095614648:web:4d827e02772b5b73fca64d"};
-    // Use compat SDK - check if already initialized
+    const fbConfig={
+      apiKey:"AIzaSyBZnorgx0FgFzQk-ynMWLWAGblA1797wL8",
+      databaseURL:"https://latte-lounge-caisse-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId:"latte-lounge-caisse",
+      appId:"1:864095614648:web:4d827e02772b5b73fca64d"
+    };
     let fbApp;
     try{ fbApp=firebase.app('serveuse'); }
     catch(e){ fbApp=firebase.initializeApp(fbConfig,'serveuse'); }
     const db=firebase.database(fbApp);
+    console.log('✅ Firebase serveuse connecté');
+    let isFirstLoad=true;
+    setTimeout(()=>{ isFirstLoad=false; console.log('✅ Serveuse listener actif - nouvelles commandes activées'); }, 2500);
     db.ref('commandes_serveuse').on('child_added',snap=>{
+      console.log('📦 child_added reçu, isFirstLoad='+isFirstLoad);
+      if(isFirstLoad) return;
       const order={...snap.val(),_key:snap.key};
-      showServeuseNotif(order,snap.key,db);
+      console.log('🔔 Nouvelle commande serveuse:', order.serveuse);
+      showServeuseNotif(order,snap.key);
     });
-  }catch(e){console.error('Serveuse listener error:',e);}
+  }catch(e){
+    console.error('Serveuse listener error:',e);
+  }
 }
 
-function showServeuseNotif(order,key,db){
-  // Play alert sound
-  playAlert();
-  // Show modal
-  const modal=document.createElement('div');
-  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);animation:popIn .3s ease;';
-  const itemsHtml=(order.items||[]).map(it=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid var(--border);color:var(--muted)"><span>${it.name} × ${it.qty}</span><span>${it.subtotal} MRU</span></div>`).join('');
-  modal.innerHTML=`
-    <div style="background:var(--surface);border:2px solid var(--gold);border-radius:20px;width:100%;max-width:400px;overflow:hidden;animation:popIn .3s cubic-bezier(.34,1.56,.64,1)">
-      <div style="background:linear-gradient(135deg,#1a1200,#2d1f00);padding:16px 20px;border-bottom:1px solid var(--gold);">
-        <div style="font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">🔔 Nouvelle commande serveuse</div>
-        <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);">👩‍💼 ${order.serveuse}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${order.date} · ${order.time}</div>
-      </div>
-      <div style="padding:14px 20px;max-height:260px;overflow-y:auto;">
-        ${itemsHtml}
-        <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;color:var(--gold);padding:8px 0;margin-top:4px;">
-          <span>TOTAL</span><span>${order.total} MRU</span>
-        </div>
-        ${order.notes?`<div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.2);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--gold2);margin-top:6px;">📝 ${order.notes}</div>`:''}
-      </div>
-      <div style="display:flex;gap:8px;padding:14px 20px;border-top:1px solid var(--border);">
-        <button onclick="imprimerServeuse(${JSON.stringify(order).replace(/"/g,'&quot;')}, this.closest('[style]'), '${key}')" style="flex:2;padding:13px;background:var(--gold);border:none;border-radius:12px;color:#000;font-family:'Playfair Display',serif;font-size:15px;font-weight:700;cursor:pointer;">🖨 Imprimer le ticket</button>
-        <button onclick="this.closest('[style]').remove();supprimerServeuseOrder('${key}')" style="flex:1;padding:13px;background:transparent;border:1px solid var(--border);border-radius:12px;color:var(--muted);font-size:13px;cursor:pointer;">✖ Ignorer</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
+let _currentServeuseOrder=null;
+let _currentServeuseKey=null;
+
+function showServeuseNotif(order,key){
+  _currentServeuseOrder=order;
+  _currentServeuseKey=key;
+  // Son
+  try{ playAlert(); }catch(e){}
+  // Remplir le panneau
+  document.getElementById('servNom').textContent='👩‍💼 '+order.serveuse;
+  document.getElementById('servTime').textContent=(order.date||'')+' · '+(order.time||'');
+  let itemsHtml=(order.items||[]).map(it=>
+    `<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid #2A2A2A;color:#aaa;">
+      <span>${it.name} × ${it.qty}</span><span style="color:#C9A84C;font-weight:700;">${it.subtotal} MRU</span>
+    </div>`
+  ).join('');
+  itemsHtml+=`<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:#C9A84C;padding:10px 0;margin-top:4px;border-top:2px solid #2A2A2A;">
+    <span>TOTAL</span><span>${order.total} MRU</span>
+  </div>`;
+  if(order.notes) itemsHtml+=`<div style="background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:8px;padding:8px 12px;font-size:12px;color:#F0D080;margin-top:6px;">📝 ${order.notes}</div>`;
+  document.getElementById('servItems').innerHTML=itemsHtml;
+  // Afficher le panneau
+  const panel=document.getElementById('serveusePanel');
+  panel.style.display='flex';
 }
 
-window.supprimerServeuseOrder=function(key){
-  try{
-    const fbApp=firebase.app('serveuse');
-    const db=firebase.database(fbApp);
-    db.ref('commandes_serveuse/'+key).remove();
-  }catch(e){console.log('Delete error:',e);}
+window.ignorerServeuseCommande=function(){
+  document.getElementById('serveusePanel').style.display='none';
+  supprimerServeuseOrder(_currentServeuseKey);
+  _currentServeuseOrder=null;_currentServeuseKey=null;
 };
 
-window.imprimerServeuse=function(order,modal,key){
+window.imprimerServeuseCommande=function(){
+  if(!_currentServeuseOrder)return;
+  const order=_currentServeuseOrder;
+  const key=_currentServeuseKey;
   const now=new Date(),pad=s=>String(s).padStart(2,'0');
   const date=order.date||`${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
   const time=order.time||`${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const itemsHtml=order.items.map(it=>`<div class="item-row"><span class="item-name">${it.name}</span><span class="item-qty">×${it.qty}</span><span class="item-price">${it.subtotal} MRU</span></div>`).join('');
   const w=window.open('','_blank');
-  let itemsHtml=order.items.map(it=>`<div class="item-row"><span class="item-name">${it.name}</span><span class="item-qty">×${it.qty}</span><span class="item-price">${it.subtotal} MRU</span></div>`).join('');
   w.document.write(`<!DOCTYPE html><html><head><title>Ticket Serveuse</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap');
@@ -517,24 +554,21 @@ window.imprimerServeuse=function(order,modal,key){
     .header{text-align:center;margin-bottom:8px;}
     .name{font-size:20px;letter-spacing:2px;text-transform:uppercase;-webkit-text-stroke:1px #000;}
     .sub{font-size:12px;margin-top:2px;}
-    .serveuse-line{text-align:center;border:2px solid #000;padding:5px;margin:8px 0;font-size:14px;letter-spacing:1px;}
+    .serveuse-line{text-align:center;border:3px solid #000;padding:6px;margin:8px 0;font-size:15px;letter-spacing:1px;}
     .divider-d{border-top:4px double #000;margin:6px 0;}
     .divider-s{border-top:3px solid #000;margin:5px 0;}
     .divider-dash{border-top:2px dashed #000;margin:5px 0;}
     .info{font-size:13px;margin:3px 0;}
-    .items-hdr{display:flex;justify-content:space-between;font-size:13px;text-transform:uppercase;letter-spacing:1px;-webkit-text-stroke:0.8px #000;}
+    .items-hdr{display:flex;justify-content:space-between;font-size:13px;text-transform:uppercase;-webkit-text-stroke:0.8px #000;}
     .item-row{display:flex;justify-content:space-between;font-size:14px;margin:4px 0;}
     .item-name{flex:1;padding-right:4px;word-break:break-word;}
     .item-qty{width:24px;text-align:center;}
     .item-price{width:55px;text-align:right;white-space:nowrap;}
     .total-row{display:flex;justify-content:space-between;font-size:18px;margin:5px 0;text-transform:uppercase;-webkit-text-stroke:1px #000;}
     .notes-box{border:2px dashed #000;padding:6px;margin:6px 0;font-size:13px;}
-    @media print{*{-webkit-text-stroke:0.5px #000!important;}.total-row{-webkit-text-stroke:1px #000!important;}div:last-child{page-break-after:avoid!important;}}
+    @media print{div:last-child{page-break-after:avoid!important;}}
   </style></head><body>
-  <div class="header">
-    <div class="name">LATTE LOUNGE</div>
-    <div class="sub">Route de Nouadhibou · Nouakchott</div>
-  </div>
+  <div class="header"><div class="name">LATTE LOUNGE</div><div class="sub">Route de Nouadhibou · Nouakchott</div></div>
   <div class="serveuse-line">👩‍💼 SERVEUSE : ${order.serveuse}</div>
   <div class="divider-d"></div>
   <div class="info">Date  : ${date}</div>
@@ -550,9 +584,10 @@ window.imprimerServeuse=function(order,modal,key){
   </body></html>`);
   w.document.close();
   setTimeout(()=>{w.focus();w.print();},500);
-  // Fermer le modal et supprimer l'ordre
-  if(modal)modal.remove();
+  // Fermer panel et supprimer
+  document.getElementById('serveusePanel').style.display='none';
   supprimerServeuseOrder(key);
+  _currentServeuseOrder=null;_currentServeuseKey=null;
 };
 
 // ── CLOCK ──
