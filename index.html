@@ -397,6 +397,7 @@ const MENU = {
     ["Jus D'Orange",100],["Jus De Citron",100],["Jus De Pomme",100],
     ["Jus D'Avocat",100],["Jus De Mangue",100],["Jus De Pastèque",100],
     ["Jus D'Ananas",100],["Jus De Kiwi",100],
+    ["Jus De Banane",100],["Jus De Cocktail",100],
   ],
   "🥛 Milkshakes": [
     ["Milkshake Fraise",150],["Milkshake Vanille",150],
@@ -574,23 +575,11 @@ window.imprimerServeuseCommande=function(){
   <div class="divider-double"></div>
   ${order.notes?`<div class="notes-box">📝 NOTE : ${order.notes}</div><div class="divider-double"></div>`:''}
   <div class="footer">
-    À bientôt chez Latte Lounge ☕<br><br>
-    <div style="text-align:center;margin-top:8px;">
-      <div style="font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">📱 Commandez en ligne</div>
-      <div id="qrcode" style="display:inline-block;border:3px solid #000;border-radius:4px;padding:4px;background:#fff;"></div>
-    </div>
+    À bientôt chez Latte Lounge ☕<br>
+    <div class="divider-dash" style="margin:6px 0;"></div>
+    Paiement Bankily/Masrvi/Sedad :<br>
+    34 42 01 01
   </div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-  <script>
-    window.onload=function(){
-      new QRCode(document.getElementById('qrcode'),{
-        text:'https://lattelounge-client.pages.dev',
-        width:110,height:110,
-        colorDark:'#000000',colorLight:'#ffffff',
-        correctLevel:QRCode.CorrectLevel.H
-      });
-    };
-  <\/script>
   </body></html>`);
   w.document.close();
   setTimeout(()=>{w.focus();w.print();},1200);
@@ -710,26 +699,8 @@ function closeModal(){ document.getElementById('modal').classList.remove('open')
 function newOrder(){ panier={}; renderOrder(); closeModal(); }
 
 function buildReceiptPage(copyLabel, footerText, withQR=false){
-  const qrScript = withQR ? `<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>` : '';
-  const qrDiv = withQR ? `
-  <div style="text-align:center;margin-top:10px;">
-    <div style="font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">📱 Commandez en ligne</div>
-    <div id="qrcode" style="display:inline-block;border:3px solid #000;border-radius:4px;padding:4px;background:#fff;"></div>
-  </div>
-  <script>
-    window.onload=function(){
-      new QRCode(document.getElementById('qrcode'),{
-        text:'https://lattelounge-client.pages.dev',
-        width:110,height:110,
-        colorDark:'#000000',colorLight:'#ffffff',
-        correctLevel:QRCode.CorrectLevel.H
-      });
-    };
-  <\/script>` : '';
-
   return `<!DOCTYPE html>
 <html><head><title>Reçu Latte Lounge</title>
-${qrScript}
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap');
   @page { size: 80mm auto; margin: 0; }
@@ -764,24 +735,22 @@ ${qrScript}
   ${buildReceiptHTML()}
   <div class="divider-double"></div>
   <div class="footer">${footerText}</div>
-  ${qrDiv}
 </body></html>`;
 }
 
 function printReceipt(){
-  // COPIE CLIENT avec QR code
   const w1=window.open('','_blank');
-  w1.document.write(buildReceiptPage('✂ COPIE CLIENT','À bientôt chez Latte Lounge ☕', true));
+  w1.document.write(buildReceiptPage('✂ COPIE CLIENT','À bientôt chez Latte Lounge ☕<br><div style="border-top:2px dashed #000;margin:6px 0;"></div>Paiement Bankily/Masrvi/Sedad :<br>34 42 01 01'));
   w1.document.close();
   setTimeout(()=>{
     w1.focus(); w1.print();
     setTimeout(()=>{
       const w2=window.open('','_blank');
-      w2.document.write(buildReceiptPage('⚑ COPIE RESTAURANT','*** COPIE RESTAURANT ***', false));
+      w2.document.write(buildReceiptPage('⚑ COPIE RESTAURANT','*** COPIE RESTAURANT ***'));
       w2.document.close();
       setTimeout(()=>{ w2.focus(); w2.print(); }, 600);
     }, 2000);
-  }, 1500);
+  }, 1000);
 }
 
 function buildReceiptHTML(){
