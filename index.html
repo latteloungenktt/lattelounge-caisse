@@ -417,21 +417,8 @@
   </div>
 </div>
 
-<!-- SERVEUSE NOTIFICATION PANEL -->
-<div id="serveusePanel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;align-items:center;justify-content:center;padding:20px;">
-  <div style="background:#161616;border:2px solid #C9A84C;border-radius:20px;width:100%;max-width:420px;overflow:hidden;">
-    <div style="background:linear-gradient(135deg,#1a1200,#2d1f00);padding:16px 20px;border-bottom:1px solid #C9A84C;">
-      <div style="font-size:11px;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">🔔 Nouvelle commande serveuse</div>
-      <div id="servNom" style="font-family:'Playfair Display',serif;font-size:22px;color:#C9A84C;font-weight:700;"></div>
-      <div id="servTime" style="font-size:11px;color:#888;margin-top:2px;"></div>
-    </div>
-    <div id="servItems" style="padding:14px 20px;max-height:280px;overflow-y:auto;"></div>
-    <div style="display:flex;gap:8px;padding:14px 20px;border-top:1px solid #2A2A2A;">
-      <button onclick="imprimerServeuseCommande()" style="flex:2;padding:13px;background:#C9A84C;border:none;border-radius:12px;color:#000;font-family:'Playfair Display',serif;font-size:15px;font-weight:700;cursor:pointer;">🖨 Imprimer le ticket</button>
-      <button onclick="ignorerServeuseCommande()" style="flex:1;padding:13px;background:transparent;border:1px solid #2A2A2A;border-radius:12px;color:#888;font-size:13px;cursor:pointer;">✖ Ignorer</button>
-    </div>
-  </div>
-</div>
+<!-- SERVEUSE NOTIFICATION PANEL - replaced by direct table integration -->
+<div id="serveusePanel" style="display:none"></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -580,12 +567,13 @@ function renderTabs() {
   container.innerHTML = '';
   Object.values(tables).forEach(t => {
     const tab = document.createElement('div');
-    tab.className = 'order-tab' + (t.id === currentTableId ? ' active' : '') + (t.kitchenSent ? ' kitchen-sent' : '');
+    const icon = t.fromServeuse ? '👩‍💼' : (t.kitchenSent ? '🍳' : '📋');
     const total = Object.values(t.items).reduce((s,v)=>s+v.price*v.qty,0);
-    tab.innerHTML = `<span onclick="switchTable('${t.id}')">${t.kitchenSent ? '🍳' : '📋'} ${t.name} · ${total} MRU</span><span class="tab-close" onclick="removeTable('${t.id}')">✕</span>`;
+    tab.className = 'order-tab' + (t.id === currentTableId ? ' active' : '') + (t.kitchenSent ? ' kitchen-sent' : '');
+    if(t.fromServeuse && t.id !== currentTableId) tab.style.borderColor = 'var(--gold)';
+    tab.innerHTML = `<span onclick="switchTable('${t.id}')">${icon} ${t.name} · ${total} MRU</span><span class="tab-close" onclick="removeTable('${t.id}')">✕</span>`;
     container.appendChild(tab);
   });
-  // Scroll active tab into view
   const activeTab = container.querySelector('.active');
   if(activeTab) activeTab.scrollIntoView({behavior:'smooth', block:'nearest', inline:'nearest'});
 }
@@ -632,7 +620,15 @@ function renderOrder() {
     document.getElementById('btnPayment').disabled = true;
     return;
   }
-  label.innerHTML = `📋 ${t.name} ${t.kitchenSent ? '<span class="kitchen-badge">Cuisine ✓</span>' : ''}`;
+  label.innerHTML = `${t.fromServeuse ? '👩‍💼' : '📋'} ${t.name} ${t.kitchenSent ? '<span class="kitchen-badge">Cuisine ✓</span>' : ''}`;
+  // Afficher les notes serveuse si présentes
+  let notesBar = document.getElementById('serveuseNotesBar');
+  if(t.fromServeuse && t.notes){
+    if(!notesBar){ notesBar=document.createElement('div'); notesBar.id='serveuseNotesBar'; notesBar.style.cssText='padding:6px 14px;background:rgba(184,148,42,.08);border-bottom:1px solid var(--border);font-size:12px;color:var(--gold);'; document.getElementById('orderList').before(notesBar); }
+    notesBar.textContent='📝 '+t.notes;
+  } else {
+    if(notesBar) notesBar.remove();
+  }
   const items = Object.entries(t.items);
   if (!items.length) {
     list.innerHTML = '<div class="empty-state"><div class="icon">🍽</div>Aucun article.<br>Appuyez sur le menu.</div>';
@@ -889,26 +885,59 @@ let _currentServeuseOrder=null;
 let _currentServeuseKey=null;
 
 function showServeuseNotif(order,key){
-  _currentServeuseOrder=order;
-  _currentServeuseKey=key;
+  // Supprimer de Firebase immédiatement
+  supprimerServeuseOrder(key);
+
+  // Créer une nouvelle table dans le système caisse
+  tableCounter++;
+  const tableId = 'S' + key.slice(-4); // ID unique basé sur la clé Firebase
+  const tableName = order.serveuse + (order.tableNum ? ' · T'+order.tableNum : '');
+
+  // Convertir les articles au format panier
+  const items = {};
+  (order.items||[]).forEach(it => {
+    items[it.name] = { price: it.price, qty: it.qty };
+  });
+
+  // Créer la table
+  tables[tableId] = {
+    id: tableId,
+    name: tableName,
+    items,
+    kitchenSent: false,
+    payMode: null,
+    paid: false,
+    createdAt: new Date(),
+    fromServeuse: true,
+    notes: order.notes || '',
+  };
+
+  // Switcher vers cette table
+  currentTableId = tableId;
+  renderTabs();
+  renderOrder();
+
+  // Son d'alerte
   try{ playAlert(); }catch(e){}
-  // Nom + numéro de table
-  document.getElementById('servNom').innerHTML=
-    '👩‍💼 '+order.serveuse+
-    (order.tableNum ? ' <span style="margin-left:8px;background:rgba(184,148,42,.25);border:1px solid #C9A84C;border-radius:20px;padding:2px 12px;font-size:15px;color:#F0D080;font-weight:700;">Table '+order.tableNum+'</span>' : '');
-  document.getElementById('servTime').textContent=(order.date||'')+' · '+(order.time||'');
-  let itemsHtml=(order.items||[]).map(it=>
-    `<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid #2A2A2A;color:#aaa;">
-      <span>${it.name} × ${it.qty}</span><span style="color:#C9A84C;font-weight:700;">${it.subtotal} MRU</span>
-    </div>`
-  ).join('');
-  itemsHtml+=`<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:#C9A84C;padding:10px 0;margin-top:4px;border-top:2px solid #2A2A2A;">
-    <span>TOTAL</span><span>${order.total} MRU</span>
-  </div>`;
-  if(order.notes) itemsHtml+=`<div style="background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:8px;padding:8px 12px;font-size:12px;color:#F0D080;margin-top:6px;">📝 ${order.notes}</div>`;
-  document.getElementById('servItems').innerHTML=itemsHtml;
-  const panel=document.getElementById('serveusePanel');
-  panel.style.display='flex';
+
+  // Toast de notification
+  showServeuseToast(order.serveuse, order.tableNum, order.total);
+}
+
+function showServeuseToast(nom, tableNum, total){
+  // Créer un toast discret en haut de la page
+  const existing = document.getElementById('serveuseToast');
+  if(existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'serveuseToast';
+  toast.style.cssText = 'position:fixed;top:70px;right:20px;background:var(--navy);border:2px solid var(--gold);border-radius:14px;padding:14px 20px;z-index:800;box-shadow:0 8px 32px rgba(27,42,74,.4);animation:popIn .3s ease;max-width:280px;';
+  toast.innerHTML = `
+    <div style="font-size:11px;color:rgba(255,255,255,.5);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">🔔 Commande serveuse</div>
+    <div style="font-family:'Playfair Display',serif;font-size:16px;color:var(--gold2);font-weight:700;">👩‍💼 ${nom} · Table ${tableNum}</div>
+    <div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:3px;">Ajoutée au panneau · ${total} MRU</div>
+  `;
+  document.body.appendChild(toast);
+  setTimeout(()=>{ if(toast.parentNode) toast.remove(); }, 4000);
 }
 
 window.ignorerServeuseCommande=function(){
