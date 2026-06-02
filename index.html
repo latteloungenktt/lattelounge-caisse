@@ -891,10 +891,11 @@ let _currentServeuseKey=null;
 function showServeuseNotif(order,key){
   _currentServeuseOrder=order;
   _currentServeuseKey=key;
-  // Son
   try{ playAlert(); }catch(e){}
-  // Remplir le panneau
-  document.getElementById('servNom').textContent='👩‍💼 '+order.serveuse;
+  // Nom + numéro de table
+  document.getElementById('servNom').innerHTML=
+    '👩‍💼 '+order.serveuse+
+    (order.tableNum ? ' <span style="margin-left:8px;background:rgba(184,148,42,.25);border:1px solid #C9A84C;border-radius:20px;padding:2px 12px;font-size:15px;color:#F0D080;font-weight:700;">Table '+order.tableNum+'</span>' : '');
   document.getElementById('servTime').textContent=(order.date||'')+' · '+(order.time||'');
   let itemsHtml=(order.items||[]).map(it=>
     `<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid #2A2A2A;color:#aaa;">
@@ -906,7 +907,6 @@ function showServeuseNotif(order,key){
   </div>`;
   if(order.notes) itemsHtml+=`<div style="background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:8px;padding:8px 12px;font-size:12px;color:#F0D080;margin-top:6px;">📝 ${order.notes}</div>`;
   document.getElementById('servItems').innerHTML=itemsHtml;
-  // Afficher le panneau
   const panel=document.getElementById('serveusePanel');
   panel.style.display='flex';
 }
@@ -956,7 +956,7 @@ window.imprimerServeuseCommande=function(){
     <div class="sub" style="font-size:13px;font-weight:900;text-align:center;margin-top:3px;display:block;">Route de Nouadhibou · Nouakchott</div>
     <div class="sub" style="font-size:13px;font-weight:900;text-align:center;margin-top:3px;display:block;">Tél : +222 27 17 61 91</div>
   </div>
-  <div class="serveuse-line">👩‍💼 SERVEUSE : ${order.serveuse}</div>
+  <div class="serveuse-line">👩‍💼 ${order.serveuse}${order.tableNum ? ' · TABLE '+order.tableNum : ''}</div>
   <div class="divider-double"></div>
   <div class="info-row">Date  : ${date}</div>
   <div class="info-row">Heure : ${time}</div>
