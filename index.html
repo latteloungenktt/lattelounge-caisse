@@ -113,7 +113,7 @@
   .item-btn.flash { animation: flash .3s ease; }
 
   /* ── ORDER PANEL ── */
-  .order-panel { width: 320px; background: var(--surface); border-left: 2px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; box-shadow: -4px 0 20px rgba(27,42,74,.08); }
+  .order-panel { width: 380px; background: var(--surface); border-left: 2px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; box-shadow: -4px 0 20px rgba(27,42,74,.08); }
   .order-header { padding: 12px 14px 10px; border-bottom: 1px solid var(--border); font-family: 'Playfair Display', serif; font-size: 15px; color: var(--navy); display: flex; justify-content: space-between; align-items: center; background: var(--card); }
   .order-count { background: var(--navy); color: var(--gold2); font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; border-radius: 20px; padding: 2px 10px; }
   .order-list { flex: 1; overflow-y: auto; padding: 8px; scrollbar-width: thin; }
@@ -140,7 +140,49 @@
   .btn-clear { width: 100%; padding: 9px; background: transparent; border: 1px solid rgba(255,255,255,.2); border-radius: 10px; font-size: 13px; color: rgba(255,255,255,.5); cursor: pointer; transition: all .2s; }
   .btn-clear:hover { border-color: var(--red); color: var(--red); }
 
-  /* STATS BAR */
+  /* ── OPEN ORDERS BAR ── */
+  .open-orders-bar{padding:8px;background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0;}
+  .open-orders-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+  .open-orders-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-weight:600;}
+  .open-orders-tabs{display:flex;flex-wrap:wrap;gap:5px;}
+  .order-tab{padding:5px 10px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:4px;}
+  .order-tab.active{background:var(--navy);border-color:var(--navy);color:var(--gold2);}
+  .order-tab.kitchen-sent{border-color:var(--green);color:var(--green);}
+  .order-tab .tab-close{font-size:10px;opacity:.5;margin-left:2px;cursor:pointer;}
+  .order-tab .tab-close:hover{opacity:1;color:var(--red);}
+  .btn-new-table{padding:5px 14px;border-radius:20px;background:var(--gold);border:none;color:var(--navy);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;transition:all .2s;display:flex;align-items:center;gap:4px;}
+  .btn-new-table:hover{background:var(--gold2);}
+
+  /* ── PAYMENT BUTTON ── */
+  .btn-payment{width:100%;padding:13px;background:var(--green);border:none;border-radius:10px;font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:#fff;cursor:pointer;letter-spacing:1px;transition:all .2s;margin-bottom:8px;}
+  .btn-payment:hover{filter:brightness(1.1);}
+  .btn-payment:disabled{opacity:.4;cursor:not-allowed;}
+
+  /* ── PAYMENT MODAL ── */
+  .payment-modal{background:var(--surface);color:var(--text);border-radius:16px;width:460px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 30px 80px rgba(27,42,74,.3);animation:popIn .3s cubic-bezier(.34,1.56,.64,1);}
+  .pm-header{background:var(--navy);padding:18px 22px;border-bottom:2px solid var(--gold);border-radius:16px 16px 0 0;text-align:center;}
+  .pm-header h2{font-family:'Playfair Display',serif;color:var(--gold2);font-size:20px;}
+  .pm-header p{font-size:12px;color:rgba(255,255,255,.4);margin-top:4px;}
+  .pm-body{padding:20px;}
+  .pm-receipt{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:16px;font-family:'DM Mono',monospace;font-size:12px;line-height:1.8;}
+  .pm-total{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--navy);border-radius:10px;margin-bottom:16px;}
+  .pm-total-lbl{font-size:12px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:2px;}
+  .pm-total-val{font-family:'Playfair Display',serif;font-size:28px;color:var(--gold2);font-weight:700;}
+  .pm-pay-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;}
+  .pm-pay-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+  .pm-pay-btn{padding:16px;border:2px solid var(--border);border-radius:12px;background:var(--surface);cursor:pointer;text-align:center;transition:all .2s;}
+  .pm-pay-btn:hover{border-color:var(--gold);}
+  .pm-pay-btn.selected{border-color:var(--navy);background:rgba(27,42,74,.06);}
+  .pm-pay-icon{font-size:28px;margin-bottom:6px;}
+  .pm-pay-label{font-size:14px;font-weight:700;color:var(--navy);}
+  .pm-pay-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+  .btn-print-invoice{width:100%;padding:14px;background:var(--gold);border:none;border-radius:12px;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--navy);cursor:pointer;margin-bottom:8px;transition:all .2s;}
+  .btn-print-invoice:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-close-order{width:100%;padding:12px;background:var(--green);border:none;border-radius:12px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;margin-bottom:8px;transition:all .2s;display:none;}
+  .btn-cancel-pay{width:100%;padding:10px;background:transparent;border:1px solid var(--border);border-radius:12px;color:var(--muted);font-size:13px;cursor:pointer;}
+
+  /* Kitchen sent badge on order */
+  .kitchen-badge{display:inline-block;background:rgba(39,174,96,.1);border:1px solid var(--green);border-radius:6px;padding:2px 8px;font-size:10px;color:var(--green);font-weight:600;margin-left:6px;}
   .stats-bar { background: var(--navy); border-top: 1px solid rgba(184,148,42,.3); padding: 5px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: rgba(255,255,255,.4); flex-shrink: 0; }
   .stats-bar span { font-family: 'DM Mono', monospace; color: var(--gold2); font-weight: 700; }
 
@@ -196,7 +238,7 @@
   .ferm-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
   .ferm-stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
   .ferm-stat-val { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--navy); }
-  .ferm-pre { font-family: 'DM Mono', monospace; font-size: 11px; white-space: pre; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow-x: auto; line-height: 1.6; max-height: 200px; overflow-y: auto; margin-bottom: 14px; color: var(--text); }
+  .ferm-pre { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; white-space: pre; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow-x: auto; line-height: 1.9; max-height: 200px; overflow-y: auto; margin-bottom: 14px; color: var(--text); }
   .ferm-email-info { background: rgba(39,174,96,.08); border: 1px solid var(--green); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--green); margin-bottom: 14px; }
   .ferm-actions { display: flex; gap: 8px; }
   .btn-send { flex: 2; padding: 12px; background: var(--green); border: none; border-radius: 10px; color: white; font-size: 14px; font-weight: 700; cursor: pointer; transition: all .2s; }
@@ -248,8 +290,17 @@
     <div id="menuContent"></div>
   </div>
   <div class="order-panel">
+    <!-- Open orders tabs -->
+    <div class="open-orders-bar">
+      <div class="open-orders-top">
+        <span class="open-orders-label">📋 Tables ouvertes</span>
+        <button class="btn-new-table" onclick="newTable()">＋ Nouvelle table</button>
+      </div>
+      <div class="open-orders-tabs" id="openOrdersTabs"></div>
+    </div>
+    <!-- Current order header -->
     <div class="order-header">
-      <span>📋 Commande</span>
+      <span id="currentTableLabel">📋 Commande</span>
       <span class="order-count" id="orderCount">0</span>
     </div>
     <div class="order-list" id="orderList">
@@ -260,16 +311,54 @@
         <div><div class="total-label">Total</div></div>
         <div class="total-amount" id="totalDisplay">0 <span class="total-mru">MRU</span></div>
       </div>
-      <button class="btn-validate" id="btnValidate" onclick="validate()" disabled>✅ Valider &amp; Reçu</button>
-      <button class="btn-clear" onclick="clearOrder()">🔄 Nouvelle commande</button>
+      <button class="btn-validate" id="btnKitchen" onclick="printKitchenTicket()" disabled>🍳 Envoyer en cuisine</button>
+      <button class="btn-payment" id="btnPayment" onclick="openPayment()" disabled>💳 Paiement</button>
+      <button class="btn-clear" onclick="clearCurrentOrder()">🔄 Vider</button>
     </div>
   </div>
 </div>
 
 <div class="stats-bar">
-  <div>Commandes du jour : <span id="statCount">0</span></div>
-  <div>Total du jour : <span id="statTotal">0 MRU</span></div>
+  <div>Commandes : <span id="statCount">0</span></div>
+  <div>📱 Bankily : <span id="statBankily">0 MRU</span></div>
+  <div>💵 Cash : <span id="statCash">0 MRU</span></div>
+  <div>Total : <span id="statTotal">0 MRU</span></div>
   <div id="statDate"></div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div class="modal-overlay" id="paymentModal">
+  <div class="payment-modal">
+    <div class="pm-header">
+      <h2>💳 Paiement</h2>
+      <p id="pmTableLabel">Commande en cours</p>
+    </div>
+    <div class="pm-body">
+      <div class="pm-receipt" id="pmReceipt"></div>
+      <div class="pm-total">
+        <div class="pm-total-lbl">Total à payer</div>
+        <div class="pm-total-val" id="pmTotal">0 MRU</div>
+      </div>
+      <button class="btn-print-invoice" id="btnPrintInvoice" onclick="printInvoice()">🖨 Imprimer la facture</button>
+      <div id="payModeSection" style="display:none">
+        <div class="pm-pay-title" style="margin-top:14px;">Mode de paiement reçu</div>
+        <div class="pm-pay-btns">
+          <div class="pm-pay-btn" id="payBankily" onclick="selectPayMode('bankily')">
+            <div class="pm-pay-icon">📱</div>
+            <div class="pm-pay-label">Bankily</div>
+            <div class="pm-pay-sub">Virement mobile</div>
+          </div>
+          <div class="pm-pay-btn" id="payCash" onclick="selectPayMode('cash')">
+            <div class="pm-pay-icon">💵</div>
+            <div class="pm-pay-label">Cash</div>
+            <div class="pm-pay-sub">Paiement espèces</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn-close-order" id="btnCloseOrder" onclick="closeOrder()" style="display:none">✅ Clôturer la commande</button>
+      <button class="btn-cancel-pay" onclick="closePaymentModal()">← Retour</button>
+    </div>
+  </div>
 </div>
 
 <!-- RECEIPT MODAL -->
@@ -314,10 +403,15 @@
         <div class="ferm-stat"><div class="ferm-stat-label">Total du Jour</div><div class="ferm-stat-val" id="fStatTotal">0 MRU</div></div>
       </div>
       <pre class="ferm-pre" id="fermeturePreview"></pre>
-      <div class="ferm-email-info">📧 Destinataire : <strong>yqb747@gmail.com</strong><br>Le rapport sera aussi téléchargé en .txt comme sauvegarde.</div>
+      <div class="ferm-email-info">📄 Choisissez comment utiliser le rapport ci-dessous.</div>
       <div class="ferm-actions">
-        <button class="btn-send" onclick="sendFermeture()">📧 Envoyer le Rapport</button>
+        <button class="btn-send" onclick="afficherRapport()" style="background:var(--blue)">👁 Afficher</button>
+        <button class="btn-send" onclick="sendFermeture()">💾 Enregistrer .txt</button>
+        <button class="btn-send" onclick="imprimerRapport()" style="background:var(--navy)">🖨 Imprimer</button>
         <button class="btn-cancel-ferm" onclick="closeFermeture()">Annuler</button>
+      </div>
+      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+        <button class="btn-send" onclick="resetCaisse()" style="background:var(--red);width:100%">🔒 Clôturer &amp; Remettre à zéro</button>
       </div>
     </div>
   </div>
@@ -419,9 +513,13 @@ const MENU = {
     ["Chicken Burger",180],["Double Burger",250],
   ],
   "🌯 Snacks": [
-    ["Tacos Viande ou Poulet",150],["Baguettino Viande ou Poulet",150],
-    ["Chawarma Viande ou Poulet",150],["Panini Viande ou Poulet",150],
-    ["Sandwich Brochette V/P",200],["Sandwich Steack V/P",200],
+    ["Tacos Viande",150],["Tacos Poulet",150],
+    ["Baguettino Viande",150],["Baguettino Poulet",150],
+    ["Chawarma Viande",150],["Chawarma Poulet",150],
+    ["Panini Viande",150],["Panini Poulet",150],
+    ["Sandwich Brochette Viande",200],["Sandwich Brochette Poulet",200],
+    ["Sandwich Steack Viande",200],["Sandwich Steack Poulet",200],
+    ["Plat De Frites",60],
   ],
   "🥪 Club Sandwich": [
     ["Club Fromage",100],["Club Poulet",150],["Club Viande",150],
@@ -451,11 +549,307 @@ const MENU = {
 };
 
 // ── STATE ──
-let panier = {};
 const todayKey = () => new Date().toISOString().slice(0,10);
 let historique = [];
 try { historique = JSON.parse(localStorage.getItem('latte_histo')||'[]').filter(o=>o.date===todayKey()); } catch(e) { historique=[]; }
 function saveHisto() { localStorage.setItem('latte_histo', JSON.stringify(historique)); }
+
+// Multi-table state
+let tables = {}; // { tableId: { id, name, items:{}, kitchenSent:false, payMode:null, paid:false, createdAt } }
+let currentTableId = null;
+let tableCounter = 0;
+let currentPayMode = null;
+
+function newTable() {
+  tableCounter++;
+  const id = 'T' + tableCounter;
+  tables[id] = { id, name: 'Table ' + tableCounter, items: {}, kitchenSent: false, payMode: null, paid: false, createdAt: new Date() };
+  currentTableId = id;
+  renderTabs();
+  renderOrder();
+}
+
+function switchTable(id) {
+  currentTableId = id;
+  renderTabs();
+  renderOrder();
+}
+
+function renderTabs() {
+  const container = document.getElementById('openOrdersTabs');
+  container.innerHTML = '';
+  Object.values(tables).forEach(t => {
+    const tab = document.createElement('div');
+    tab.className = 'order-tab' + (t.id === currentTableId ? ' active' : '') + (t.kitchenSent ? ' kitchen-sent' : '');
+    const total = Object.values(t.items).reduce((s,v)=>s+v.price*v.qty,0);
+    tab.innerHTML = `<span onclick="switchTable('${t.id}')">${t.kitchenSent ? '🍳' : '📋'} ${t.name} · ${total} MRU</span><span class="tab-close" onclick="removeTable('${t.id}')">✕</span>`;
+    container.appendChild(tab);
+  });
+  // Scroll active tab into view
+  const activeTab = container.querySelector('.active');
+  if(activeTab) activeTab.scrollIntoView({behavior:'smooth', block:'nearest', inline:'nearest'});
+}
+
+function removeTable(id) {
+  if (!confirm('Fermer cette commande ?')) return;
+  delete tables[id];
+  if (currentTableId === id) {
+    const ids = Object.keys(tables);
+    currentTableId = ids.length ? ids[ids.length-1] : null;
+    if (!currentTableId && Object.keys(tables).length === 0) newTable();
+  }
+  renderTabs();
+  renderOrder();
+}
+
+function currentTable() { return tables[currentTableId] || null; }
+
+// ── ADD ITEM ──
+function addItem(name, price) {
+  if (!currentTableId) { newTable(); }
+  const t = currentTable();
+  if (!t) return;
+  if (t.items[name]) t.items[name].qty++;
+  else t.items[name] = { price, qty: 1 };
+  const btn = document.getElementById('btn-' + name);
+  if (btn) btn.classList.add('flash', 'item-btn');
+  setTimeout(() => btn && btn.classList.remove('flash'), 300);
+  renderOrder();
+  renderTabs();
+  updateStats();
+}
+
+// ── RENDER ORDER ──
+function renderOrder() {
+  const t = currentTable();
+  const list = document.getElementById('orderList');
+  const label = document.getElementById('currentTableLabel');
+  if (!t) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">🍽</div>Aucune commande ouverte.<br>Cliquez ＋ pour commencer.</div>';
+    document.getElementById('totalDisplay').innerHTML = '0 <span class="total-mru">MRU</span>';
+    document.getElementById('orderCount').textContent = '0';
+    document.getElementById('btnKitchen').disabled = true;
+    document.getElementById('btnPayment').disabled = true;
+    return;
+  }
+  label.innerHTML = `📋 ${t.name} ${t.kitchenSent ? '<span class="kitchen-badge">Cuisine ✓</span>' : ''}`;
+  const items = Object.entries(t.items);
+  if (!items.length) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">🍽</div>Aucun article.<br>Appuyez sur le menu.</div>';
+    document.getElementById('totalDisplay').innerHTML = '0 <span class="total-mru">MRU</span>';
+    document.getElementById('orderCount').textContent = '0';
+    document.getElementById('btnKitchen').disabled = true;
+    document.getElementById('btnPayment').disabled = true;
+    return;
+  }
+  let total = 0, qty = 0;
+  list.innerHTML = '';
+  items.forEach(([name, {price, qty: q}]) => {
+    total += price * q; qty += q;
+    const div = document.createElement('div');
+    div.className = 'order-item';
+    div.innerHTML = `
+      <span class="order-item-name">${name}</span>
+      <div class="qty-ctrl">
+        <button class="qty-btn" onclick="changeQty('${name.replace(/'/g,"\\'")}', -1)">−</button>
+        <span class="qty-num">${q}</span>
+        <button class="qty-btn" onclick="changeQty('${name.replace(/'/g,"\\'")}', 1)">+</button>
+      </div>
+      <span class="order-item-price">${price*q} MRU</span>
+      <button class="del-btn" onclick="removeItem('${name.replace(/'/g,"\\'")}')">✕</button>`;
+    list.appendChild(div);
+  });
+  document.getElementById('totalDisplay').innerHTML = `${total} <span class="total-mru">MRU</span>`;
+  document.getElementById('orderCount').textContent = qty;
+  document.getElementById('btnKitchen').disabled = false;
+  document.getElementById('btnPayment').disabled = false;
+}
+
+function changeQty(name, delta) {
+  const t = currentTable(); if (!t) return;
+  if (!t.items[name]) return;
+  t.items[name].qty += delta;
+  if (t.items[name].qty <= 0) delete t.items[name];
+  renderOrder(); renderTabs(); updateStats();
+}
+function removeItem(name) {
+  const t = currentTable(); if (!t) return;
+  delete t.items[name];
+  renderOrder(); renderTabs(); updateStats();
+}
+function clearCurrentOrder() {
+  const t = currentTable(); if (!t) return;
+  if (!confirm('Vider la commande ?')) return;
+  t.items = {}; t.kitchenSent = false;
+  renderOrder(); renderTabs();
+}
+
+// ── KITCHEN TICKET ──
+function printKitchenTicket() {
+  const t = currentTable(); if (!t || !Object.keys(t.items).length) return;
+  const now = new Date(), pad = s => String(s).padStart(2,'0');
+  const items = Object.entries(t.items);
+  let itemsHtml = items.map(([name,{price,qty}]) =>
+    `<div class="item-row"><span class="item-name">${name}</span><span class="item-qty">×${qty}</span><span class="item-price">${price*qty} MRU</span></div>`
+  ).join('');
+  const total = items.reduce((s,[,v])=>s+v.price*v.qty,0);
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>Ticket Cuisine</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap');
+    @page{size:80mm auto;margin:0;}
+    *{font-weight:900!important;-webkit-text-stroke:0.5px #000;box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:auto!important;overflow:hidden;}
+    body{font-family:'Nunito','Courier New',monospace;font-size:14px;width:80mm;max-width:80mm;padding:4mm;background:#fff;color:#000;line-height:1.6;-webkit-print-color-adjust:exact;}
+    .header{text-align:center;margin-bottom:8px;}
+    .title{font-size:18px;letter-spacing:2px;text-transform:uppercase;-webkit-text-stroke:1px #000;}
+    .table-line{text-align:center;border:3px solid #000;padding:6px;margin:8px 0;font-size:16px;letter-spacing:1px;}
+    .divider-d{border-top:4px double #000;margin:6px 0;}
+    .divider-dash{border-top:2px dashed #000;margin:5px 0;}
+    .info{font-size:13px;margin:3px 0;}
+    .items-hdr{display:flex;justify-content:space-between;font-size:13px;text-transform:uppercase;-webkit-text-stroke:0.8px #000;}
+    .item-row{display:flex;align-items:flex-start;font-size:15px;margin:5px 0;}
+    .item-name{flex:1;padding-right:6px;word-break:break-word;}
+    .item-qty{width:36px;text-align:center;flex-shrink:0;font-size:16px;}
+    .item-price{width:65px;text-align:right;white-space:nowrap;flex-shrink:0;}
+    .total-row{display:flex;justify-content:space-between;font-size:18px;margin:5px 0;text-transform:uppercase;-webkit-text-stroke:1px #000;}
+    @media print{div:last-child{page-break-after:avoid!important;}}
+  </style></head><body>
+  <div class="header"><div class="title">🍳 BON DE CUISINE</div></div>
+  <div class="table-line">📋 ${t.name}</div>
+  <div class="divider-d"></div>
+  <div class="info">Heure : ${pad(now.getHours())}:${pad(now.getMinutes())}</div>
+  <div class="divider-dash"></div>
+  <div class="items-hdr"><span>Article</span><span style="width:36px;text-align:center">Qté</span><span style="width:65px;text-align:right">Prix</span></div>
+  <div class="divider-dash"></div>
+  ${itemsHtml}
+  <div class="divider-d"></div>
+  <div class="total-row"><span>TOTAL</span><span>${total} MRU</span></div>
+  </body></html>`);
+  w.document.close();
+  setTimeout(() => { w.focus(); w.print(); }, 600);
+  t.kitchenSent = true;
+  renderOrder(); renderTabs();
+}
+
+// ── PAYMENT ──
+function openPayment() {
+  const t = currentTable(); if (!t || !Object.keys(t.items).length) return;
+  currentPayMode = null;
+  document.getElementById('payBankily').classList.remove('selected');
+  document.getElementById('payCash').classList.remove('selected');
+  document.getElementById('btnPrintInvoice').disabled = false;
+  document.getElementById('payModeSection').style.display = 'none';
+  document.getElementById('btnCloseOrder').style.display = 'none';
+  document.getElementById('pmTableLabel').textContent = t.name;
+  // Build receipt preview
+  const items = Object.entries(t.items);
+  const total = items.reduce((s,[,v])=>s+v.price*v.qty,0);
+  let preview = '';
+  items.forEach(([name,{price,qty}]) => {
+    preview += `${name.padEnd(22,' ')} ×${qty}   ${(price*qty)+' MRU'}\n`;
+  });
+  document.getElementById('pmReceipt').textContent = preview;
+  document.getElementById('pmTotal').textContent = total + ' MRU';
+  document.getElementById('paymentModal').classList.add('open');
+}
+
+function selectPayMode(mode) {
+  currentPayMode = mode;
+  document.getElementById('payBankily').classList.toggle('selected', mode === 'bankily');
+  document.getElementById('payCash').classList.toggle('selected', mode === 'cash');
+  document.getElementById('btnCloseOrder').style.display = 'block';
+}
+
+function closePaymentModal() {
+  document.getElementById('paymentModal').classList.remove('open');
+}
+
+function printInvoice() {
+  const t = currentTable(); if (!t) return;
+  const now = new Date(), pad = s => String(s).padStart(2,'0');
+  const items = Object.entries(t.items);
+  const total = items.reduce((s,[,v])=>s+v.price*v.qty,0);
+  let itemsHtml = items.map(([name,{price,qty}]) =>
+    `<div class="item-row"><span class="item-name">${name}</span><span class="item-qty" style="width:36px;text-align:center;flex-shrink:0">×${qty}</span><span class="item-price" style="width:65px;text-align:right;white-space:nowrap;flex-shrink:0">${price*qty} MRU</span></div>`
+  ).join('');
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>Facture Latte Lounge</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap');
+    @page{size:80mm auto;margin:0;}
+    *{font-weight:900!important;-webkit-text-stroke:0.5px #000;box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:auto!important;overflow:hidden;}
+    body{font-family:'Nunito','Courier New',monospace;font-size:14px;width:80mm;max-width:80mm;padding:4mm;background:#fff;color:#000;line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .receipt-header{text-align:center;margin-bottom:8px;}
+    .name{font-size:22px;letter-spacing:2px;text-transform:uppercase;-webkit-text-stroke:1px #000;}
+    .sub{font-size:13px;margin-top:3px;}
+    .table-line{text-align:center;border:2px solid #000;padding:4px;margin:6px 0;font-size:13px;}
+    .divider-d{border-top:4px double #000;margin:6px 0;}
+    .divider-s{border-top:3px solid #000;margin:5px 0;}
+    .divider-dash{border-top:2px dashed #000;margin:5px 0;}
+    .info{font-size:13px;margin:3px 0;}
+    .items-hdr{display:flex;justify-content:space-between;font-size:13px;text-transform:uppercase;-webkit-text-stroke:0.8px #000;}
+    .item-row{display:flex;align-items:flex-start;font-size:14px;margin:4px 0;}
+    .item-name{flex:1;padding-right:6px;word-break:break-word;}
+    .pay-mode{text-align:center;font-size:13px;border:2px solid #000;padding:4px;margin:6px 0;}
+    .total-row{display:flex;justify-content:space-between;font-size:18px;margin:5px 0;text-transform:uppercase;-webkit-text-stroke:1px #000;}
+    .footer{text-align:center;font-size:13px;margin-top:8px;line-height:1.8;}
+    @media print{*{-webkit-text-stroke:0.5px #000!important;}.total-row{-webkit-text-stroke:1px #000!important;}div:last-child{page-break-after:avoid!important;}}
+  </style></head><body>
+  <div class="receipt-header"><div class="name">LATTE LOUNGE</div><div class="sub">Route de Nouadhibou · Nouakchott</div><div class="sub">Tél : +222 27 17 61 91</div></div>
+  <div class="table-line">📋 ${t.name}</div>
+  <div class="divider-d"></div>
+  <div class="info">Date  : ${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}</div>
+  <div class="info">Heure : ${pad(now.getHours())}:${pad(now.getMinutes())}</div>
+  <div class="divider-dash"></div>
+  <div class="items-hdr"><span style="flex:1">Article</span><span style="width:36px;text-align:center;flex-shrink:0">Qté</span><span style="width:65px;text-align:right;flex-shrink:0">Prix</span></div>
+  <div class="divider-dash"></div>
+  ${itemsHtml}
+  <div class="divider-s"></div>
+  <div class="total-row"><span>TOTAL</span><span>${total} MRU</span></div>
+  <div class="divider-d"></div>
+  <div class="footer">À bientôt chez Latte Lounge ☕<br><div style="border-top:2px dashed #000;margin:6px 0;"></div>Paiement Bankily/Masrvi/Sedad :<br>34 42 01 01</div>
+  </body></html>`);
+  w.document.close();
+  setTimeout(() => { w.focus(); w.print(); }, 800);
+  // After printing — show payment mode selection
+  document.getElementById('payModeSection').style.display = 'block';
+  document.getElementById('btnPrintInvoice').textContent = '🖨 Réimprimer la facture';
+}
+
+function closeOrder() {
+  const t = currentTable(); if (!t) return;
+  const now = new Date(), pad = s => String(s).padStart(2,'0');
+  const items = Object.entries(t.items);
+  const total = items.reduce((s,[,v])=>s+v.price*v.qty,0);
+  // Save to history
+  const entry = {
+    date: todayKey(),
+    time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+    tableName: t.name,
+    items: items.map(([name,{price,qty}])=>({name,price,qty,subtotal:price*qty})),
+    total,
+    payMode: currentPayMode,
+    num: historique.length + 1,
+  };
+  historique.push(entry);
+  saveHisto();
+  updateStats();
+  // Remove table
+  delete tables[currentTableId];
+  const ids = Object.keys(tables);
+  currentTableId = ids.length ? ids[ids.length-1] : null;
+  if (!currentTableId) newTable();
+  closePaymentModal();
+  renderTabs();
+  renderOrder();
+}
+
+// ── VALIDATE (legacy - now replaced) ──
+function validate() { openPayment(); }
+function clearOrder() { clearCurrentOrder(); }
+function newOrder() { newTable(); closeModal(); }
 
 // ── SERVEUSE ORDERS ──
 function listenServeuseOrders(){
@@ -604,63 +998,37 @@ function buildMenu() {
     const tab = document.createElement('button');
     tab.className='cat-tab'+(i===0?' active':'');
     tab.textContent=cat;
-    tab.onclick=()=>{ document.querySelectorAll('.cat-tab').forEach(t=>t.classList.remove('active')); tab.classList.add('active'); document.getElementById('cat-'+i).scrollIntoView({behavior:'smooth',block:'start'}); };
+    tab.onclick=()=>{
+      document.querySelectorAll('.cat-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      const panel = document.getElementById('menuPanel');
+      const el = document.getElementById('cat-'+i);
+      const panelRect = panel.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const tabsHeight = document.getElementById('catTabs').offsetHeight;
+      panel.scrollTop += elRect.top - panelRect.top - tabsHeight - 4;
+    };
     tabs.appendChild(tab);
     const sec=document.createElement('div'); sec.className='category'; sec.id='cat-'+i;
     const tit=document.createElement('div'); tit.className='cat-title'; tit.textContent=cat; sec.appendChild(tit);
     const grid=document.createElement('div'); grid.className='items-grid';
     MENU[cat].forEach(([name,price])=>{
-      const btn=document.createElement('button'); btn.className='item-btn';
+      const btn=document.createElement('button'); btn.className='item-btn'; btn.id='btn-'+name;
       btn.innerHTML=`<div class="item-name">${name}</div><div class="item-price">${price} MRU</div>`;
-      btn.onclick=()=>{ addItem(name,price); btn.classList.add('flash'); setTimeout(()=>btn.classList.remove('flash'),300); };
+      btn.onclick=()=>addItem(name,price);
       grid.appendChild(btn);
     });
     sec.appendChild(grid); content.appendChild(sec);
   });
 }
 
-// ── PANIER ──
-function addItem(name,price){ if(panier[name]) panier[name].qty++; else panier[name]={price,qty:1}; renderOrder(); }
-function setQty(name,delta){ if(!panier[name]) return; panier[name].qty+=delta; if(panier[name].qty<=0) delete panier[name]; renderOrder(); }
-function removeItem(name){ delete panier[name]; renderOrder(); }
-function clearOrder(){
-  if(!Object.keys(panier).length) return;
-  if(!confirm('Effacer la commande en cours ?')) return;
-  panier={}; renderOrder();
-}
-
-function renderOrder(){
-  const list=document.getElementById('orderList');
-  const items=Object.entries(panier);
-  if(!items.length){
-    list.innerHTML='<div class="empty-state"><div class="icon">🍽</div>Aucun article.<br>Appuyez sur le menu.</div>';
-    document.getElementById('orderCount').textContent='0';
-    document.getElementById('totalDisplay').innerHTML='0 <span class="total-mru">MRU</span>';
-    document.getElementById('btnValidate').disabled=true; return;
-  }
-  let total=0,totalQty=0; list.innerHTML='';
-  items.forEach(([name,{price,qty}])=>{
-    const sub=price*qty; total+=sub; totalQty+=qty;
-    const div=document.createElement('div'); div.className='order-item';
-    const sn=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    div.innerHTML=`<div class="order-item-name">${name}</div>
-      <div class="qty-ctrl">
-        <button class="qty-btn" onclick="setQty('${sn}',-1)">−</button>
-        <span class="qty-num">${qty}</span>
-        <button class="qty-btn" onclick="setQty('${sn}',1)">+</button>
-      </div>
-      <div class="order-item-price">${sub}&nbsp;MRU</div>
-      <button class="del-btn" onclick="removeItem('${sn}')">🗑</button>`;
-    list.appendChild(div);
-  });
-  document.getElementById('orderCount').textContent=totalQty;
-  document.getElementById('totalDisplay').innerHTML=`${total} <span class="total-mru">MRU</span>`;
-  document.getElementById('btnValidate').disabled=false;
-}
-
 function updateStats(){
   document.getElementById('statCount').textContent=historique.length;
+  const bankTotal=historique.filter(o=>o.payMode==='bankily').reduce((s,o)=>s+o.total,0);
+  const cashTotal=historique.filter(o=>o.payMode==='cash').reduce((s,o)=>s+o.total,0);
   document.getElementById('statTotal').textContent=historique.reduce((s,o)=>s+o.total,0).toLocaleString('fr-FR')+' MRU';
+  const sb=document.getElementById('statBankily'); if(sb) sb.textContent='📱 '+bankTotal+' MRU';
+  const sc=document.getElementById('statCash'); if(sc) sc.textContent='💵 '+cashTotal+' MRU';
 }
 updateStats();
 
@@ -836,30 +1204,115 @@ function openFermeture(){
 }
 function closeFermeture(){ document.getElementById('fermetureModal').classList.remove('open'); }
 
-function sendFermeture(){
-  const rapport=generateRapport(),now=new Date();
-  const dateStr=now.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+function resetCaisse(){
+  if(!confirm('Clôturer la journée et remettre tous les compteurs à zéro ?')) return;
   const totalJour=historique.reduce((s,o)=>s+o.total,0);
   const nbCommandes=historique.length;
-  const subject=encodeURIComponent(`[Latte Lounge] Fermeture de Caisse - ${dateStr}`);
-  const body=encodeURIComponent(rapport);
-  window.location.href=`mailto:yqb747@gmail.com?subject=${subject}&body=${body}`;
-  setTimeout(()=>{
-    const fname=`fermeture_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.txt`;
-    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([rapport],{type:'text/plain'})); a.download=fname; a.click();
-  },600);
-  // Reset
   historique=[]; saveHisto(); updateStats();
   closeFermeture();
-  setTimeout(()=>alert(`✅ Rapport envoyé !\n\nTotal du jour : ${totalJour} MRU\nCommandes : ${nbCommandes}\n\nCompteur remis à zéro.`),800);
+  alert(`✅ Caisse clôturée !\n\nTotal du jour : ${totalJour} MRU\nCommandes : ${nbCommandes}\n\nCompteurs remis à zéro.`);
+}
+
+function afficherRapport(){
+  const rapport=generateRapport();
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>Rapport de Caisse</title>
+  <style>
+    body{font-family:'Courier New',monospace;font-size:15px;font-weight:700;white-space:pre;padding:30px;background:#FEFCF3;color:#1B2A4A;line-height:1.9;}
+  </style>
+  </head><body>${rapport.replace(/</g,'&lt;')}</body></html>`);
+  w.document.close();
+}
+
+function imprimerRapport(){
+  const rapport=generateRapport();
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>Rapport de Caisse</title>
+  <style>
+    @page{size:A4;margin:15mm;}
+    body{font-family:'Courier New',monospace;font-size:13px;font-weight:700;white-space:pre;line-height:1.9;color:#000;-webkit-print-color-adjust:exact;}
+  </style>
+  </head><body>${rapport.replace(/</g,'&lt;')}</body></html>`);
+  w.document.close();
+  setTimeout(()=>{w.focus();w.print();},400);
+}
+
+function sendFermeture(){
+  const now=new Date();
+  const pad=s=>String(s).padStart(2,'0');
+  const fname=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}.txt`;
+  const rapport=generateRapport();
+  const blob=new Blob([rapport],{type:'text/plain;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  alert(`✅ Fichier "${fname}" téléchargé !`);
+}
+
+function generateRapport(){
+  const now=new Date(),pad=s=>String(s).padStart(2,'0');
+  const dateStr=`${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()}`;
+  const W=48, line='='.repeat(W), dash='-'.repeat(W);
+  const center=t=>' '.repeat(Math.max(0,Math.floor((W-t.length)/2)))+t;
+
+  const bankilyOrders=historique.filter(o=>o.payMode==='bankily');
+  const cashOrders=historique.filter(o=>o.payMode==='cash');
+  const totalBankily=bankilyOrders.reduce((s,o)=>s+o.total,0);
+  const totalCash=cashOrders.reduce((s,o)=>s+o.total,0);
+  const totalJour=historique.reduce((s,o)=>s+o.total,0);
+
+  let r='';
+  r+=line+'\n'+center('LATTE LOUNGE')+'\n'+center('RAPPORT DE CAISSE')+'\n'+center(dateStr)+'\n'+line+'\n\n';
+  r+=`Nombre de commandes : ${historique.length}\n`;
+  r+=`Total Bankily       : ${totalBankily} MRU\n`;
+  r+=`Total Cash          : ${totalCash} MRU\n`;
+  r+=`TOTAL JOURNEE       : ${totalJour} MRU\n`;
+  r+='\n'+line+'\n';
+
+  // Bankily orders
+  r+=center('PAIEMENTS BANKILY')+'\n'+dash+'\n';
+  if(!bankilyOrders.length){ r+='  Aucune commande Bankily\n'; }
+  else {
+    bankilyOrders.forEach((o,i)=>{
+      r+=`\n  #${String(i+1).padStart(3,'0')} — ${o.tableName||'Table'} — ${o.time}\n`;
+      o.items.forEach(it=>{ const left=`    ${it.name.substring(0,24)} ×${it.qty}`,right=`${it.subtotal} MRU`; r+=left.padEnd(W-right.length)+right+'\n'; });
+      const tl=`    TOTAL : ${o.total} MRU`; r+=tl+'\n';
+    });
+    r+=dash+'\n';
+    const stl=`  SOUS-TOTAL BANKILY : ${totalBankily} MRU`; r+=stl+'\n';
+  }
+  r+='\n'+line+'\n';
+
+  // Cash orders
+  r+=center('PAIEMENTS CASH')+'\n'+dash+'\n';
+  if(!cashOrders.length){ r+='  Aucune commande Cash\n'; }
+  else {
+    cashOrders.forEach((o,i)=>{
+      r+=`\n  #${String(i+1).padStart(3,'0')} — ${o.tableName||'Table'} — ${o.time}\n`;
+      o.items.forEach(it=>{ const left=`    ${it.name.substring(0,24)} ×${it.qty}`,right=`${it.subtotal} MRU`; r+=left.padEnd(W-right.length)+right+'\n'; });
+      const tl=`    TOTAL : ${o.total} MRU`; r+=tl+'\n';
+    });
+    r+=dash+'\n';
+    const stl=`  SOUS-TOTAL CASH : ${totalCash} MRU`; r+=stl+'\n';
+  }
+  r+='\n'+line+'\n';
+  r+=center(`TOTAL JOURNEE : ${totalJour} MRU`)+'\n';
+  r+=line+'\n'+center('Fin du rapport')+'\n'+line;
+  return r;
 }
 
 // Close modals on backdrop
-['modal','historyModal','fermetureModal'].forEach(id=>{
-  document.getElementById(id).addEventListener('click',function(e){ if(e.target===this) this.classList.remove('open'); });
+['modal','historyModal','fermetureModal','paymentModal'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener('click',function(e){ if(e.target===this) this.classList.remove('open'); });
 });
 
 buildMenu();
+newTable(); // Start with one open table
 </script>
 </body>
 </html>
