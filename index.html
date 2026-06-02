@@ -884,44 +884,56 @@ function listenServeuseOrders(){
 let _currentServeuseOrder=null;
 let _currentServeuseKey=null;
 
+window.supprimerServeuseOrder=function(key){
+  try{
+    const fbApp=firebase.app('serveuse');
+    const db=firebase.database(fbApp);
+    db.ref('commandes_serveuse/'+key).remove();
+  }catch(e){console.log('Delete serveuse order error:',e);}
+};
+
 function showServeuseNotif(order,key){
-  // Supprimer de Firebase immédiatement
-  supprimerServeuseOrder(key);
+  try{
+    // Créer une nouvelle table dans le système caisse
+    const tableId = 'S' + key.slice(-4);
+    const tableName = order.serveuse + (order.tableNum ? ' · T'+order.tableNum : '');
 
-  // Créer une nouvelle table dans le système caisse
-  tableCounter++;
-  const tableId = 'S' + key.slice(-4); // ID unique basé sur la clé Firebase
-  const tableName = order.serveuse + (order.tableNum ? ' · T'+order.tableNum : '');
+    // Convertir les articles au format panier
+    const items = {};
+    (order.items||[]).forEach(it => {
+      items[it.name] = { price: it.price, qty: it.qty };
+    });
 
-  // Convertir les articles au format panier
-  const items = {};
-  (order.items||[]).forEach(it => {
-    items[it.name] = { price: it.price, qty: it.qty };
-  });
+    // Créer la table
+    tables[tableId] = {
+      id: tableId,
+      name: tableName,
+      items,
+      kitchenSent: false,
+      payMode: null,
+      paid: false,
+      createdAt: new Date(),
+      fromServeuse: true,
+      notes: order.notes || '',
+    };
 
-  // Créer la table
-  tables[tableId] = {
-    id: tableId,
-    name: tableName,
-    items,
-    kitchenSent: false,
-    payMode: null,
-    paid: false,
-    createdAt: new Date(),
-    fromServeuse: true,
-    notes: order.notes || '',
-  };
+    // Switcher vers cette table
+    currentTableId = tableId;
+    renderTabs();
+    renderOrder();
 
-  // Switcher vers cette table
-  currentTableId = tableId;
-  renderTabs();
-  renderOrder();
+    // Son d'alerte
+    try{ playAlert(); }catch(e){}
 
-  // Son d'alerte
-  try{ playAlert(); }catch(e){}
+    // Toast de notification
+    showServeuseToast(order.serveuse, order.tableNum, order.total);
 
-  // Toast de notification
-  showServeuseToast(order.serveuse, order.tableNum, order.total);
+    // Supprimer de Firebase après affichage réussi
+    supprimerServeuseOrder(key);
+
+  }catch(e){
+    console.error('Erreur showServeuseNotif:', e);
+  }
 }
 
 function showServeuseToast(nom, tableNum, total){
