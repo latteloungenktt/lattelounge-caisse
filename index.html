@@ -275,6 +275,7 @@
   </div>
   <div class="header-center">
     <button class="btn-history" onclick="openHistory()">📋 Historique</button>
+          <button class="btn-history" onclick="openStats()" style="background:var(--green);">📊 Stats</button>
     <button class="btn-fermeture" onclick="openFermeture()">🔒 FERMETURE</button>
     <button class="btn-logout" onclick="logout()">⏏ Déconnexion</button>
   </div>
@@ -324,6 +325,68 @@
   <div>💵 Cash : <span id="statCash">0 MRU</span></div>
   <div>Total : <span id="statTotal">0 MRU</span></div>
   <div id="statDate"></div>
+</div>
+
+<!-- STATS MODAL -->
+<div class="modal-overlay" id="statsModal">
+  <div class="ferm-modal" style="max-width:560px;max-height:95vh;">
+    <div class="ferm-header" style="background:var(--navy);">
+      <h2 style="color:var(--gold2);">📈 Analyses des ventes</h2>
+      <p id="statsDate" style="color:rgba(255,255,255,.5);font-size:11px;margin-top:4px;letter-spacing:1px;"></p>
+    </div>
+    <div class="ferm-body" style="overflow-y:auto;max-height:calc(95vh - 80px);">
+
+      <!-- Onglets -->
+      <div style="display:flex;gap:6px;margin-bottom:16px;">
+        <button onclick="showAnalyticsTab('today')" id="tabToday" style="flex:1;padding:9px;border-radius:10px;border:1.5px solid var(--navy);background:var(--navy);color:var(--gold2);font-weight:700;font-size:12px;cursor:pointer;">📅 Aujourd'hui</button>
+        <button onclick="showAnalyticsTab('week')" id="tabWeek" style="flex:1;padding:9px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-weight:600;font-size:12px;cursor:pointer;">📆 7 derniers jours</button>
+        <button onclick="showAnalyticsTab('products')" id="tabProducts" style="flex:1;padding:9px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-weight:600;font-size:12px;cursor:pointer;">🏆 Produits</button>
+      </div>
+
+      <!-- Tab Aujourd'hui -->
+      <div id="analyticsToday">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+          <div class="ferm-stat"><div class="ferm-stat-label">Commandes</div><div class="ferm-stat-val" id="st-count">0</div></div>
+          <div class="ferm-stat" style="border-color:rgba(39,174,96,.3)"><div class="ferm-stat-label">📱 Bankily</div><div class="ferm-stat-val" id="st-bankily" style="color:var(--green)">0</div></div>
+          <div class="ferm-stat" style="border-color:rgba(184,148,42,.3)"><div class="ferm-stat-label">💵 Cash</div><div class="ferm-stat-val" id="st-cash" style="color:var(--gold)">0</div></div>
+        </div>
+        <div style="background:var(--navy);border-radius:12px;padding:16px;text-align:center;margin-bottom:14px;">
+          <div style="font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;">Total journée</div>
+          <div class="ferm-stat-val" id="st-total" style="font-size:32px;color:var(--gold2);">0 MRU</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;">Commandes du jour</div>
+        <div style="max-height:220px;overflow-y:auto;" id="statsOrderList"></div>
+      </div>
+
+      <!-- Tab 7 jours -->
+      <div id="analyticsWeek" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+          <div class="ferm-stat"><div class="ferm-stat-label">Total commandes</div><div class="ferm-stat-val" id="wk-count">0</div></div>
+          <div class="ferm-stat" style="border-color:rgba(184,148,42,.3)"><div class="ferm-stat-label">Chiffre d'affaires</div><div class="ferm-stat-val" id="wk-total" style="color:var(--gold)">0 MRU</div></div>
+          <div class="ferm-stat" style="border-color:rgba(39,174,96,.3)"><div class="ferm-stat-label">📱 Bankily total</div><div class="ferm-stat-val" id="wk-bankily" style="color:var(--green)">0 MRU</div></div>
+          <div class="ferm-stat" style="border-color:rgba(41,128,185,.3)"><div class="ferm-stat-label">💵 Cash total</div><div class="ferm-stat-val" id="wk-cash" style="color:var(--blue)">0 MRU</div></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;">Par jour</div>
+        <div id="weekChart" style="max-height:260px;overflow-y:auto;"></div>
+      </div>
+
+      <!-- Tab Produits -->
+      <div id="analyticsProducts" style="display:none;">
+        <div style="display:flex;gap:6px;margin-bottom:12px;">
+          <button onclick="sortProducts('qty')" id="sortQty" style="flex:1;padding:7px;border-radius:8px;background:var(--navy);border:none;color:var(--gold2);font-size:11px;font-weight:700;cursor:pointer;">Quantité vendues</button>
+          <button onclick="sortProducts('ca')" id="sortCA" style="flex:1;padding:7px;border-radius:8px;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;">Chiffre d'affaires</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;">🏆 Top ventes — 7 jours</div>
+        <div id="topProducts" style="max-height:180px;overflow-y:auto;margin-bottom:14px;"></div>
+        <div style="font-size:11px;color:var(--red);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;">📉 Jamais ou rarement commandés</div>
+        <div id="lowProducts" style="max-height:160px;overflow-y:auto;"></div>
+      </div>
+
+      <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
+        <button class="btn-cancel-ferm" onclick="document.getElementById('statsModal').classList.remove('open')">← Fermer</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- PAYMENT MODAL -->
@@ -538,11 +601,92 @@ const MENU = {
 // ── STATE ──
 const todayKey = () => new Date().toISOString().slice(0,10);
 let historique = [];
-try { historique = JSON.parse(localStorage.getItem('latte_histo')||'[]').filter(o=>o.date===todayKey()); } catch(e) { historique=[]; }
-function saveHisto() { localStorage.setItem('latte_histo', JSON.stringify(historique)); }
+let fbCaisse = null; // Firebase instance for caisse data
+
+// ── FIREBASE CAISSE ──
+function initFirebaseCaisse(){
+  const fbConfig={
+    apiKey:"AIzaSyBZnorgx0FgFzQk-ynMWLWAGblA1797wL8",
+    databaseURL:"https://latte-lounge-caisse-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId:"latte-lounge-caisse",
+    appId:"1:864095614648:web:4d827e02772b5b73fca64d"
+  };
+  try{ fbCaisse=firebase.app('caisse'); }
+  catch(e){ fbCaisse=firebase.initializeApp(fbConfig,'caisse'); }
+  return firebase.database(fbCaisse);
+}
+
+function getDb(){ return firebase.database(fbCaisse); }
+
+// Sauvegarde historique dans Firebase
+function saveHisto(){
+  try{
+    const db=getDb();
+    const key=todayKey().replace(/-/g,'_');
+    db.ref('caisse_historique/'+key).set(historique);
+  }catch(e){ console.error('saveHisto error:',e); }
+  // Aussi en localStorage comme backup
+  try{ localStorage.setItem('latte_histo_'+todayKey(), JSON.stringify(historique)); }catch(e){}
+}
+
+// Sauvegarde tables ouvertes dans Firebase
+function saveTables(){
+  try{
+    const db=getDb();
+    // Sérialiser les tables (convertir Date en string)
+    const toSave={};
+    Object.entries(tables).forEach(([id,t])=>{
+      toSave[id]={...t, createdAt: t.createdAt ? t.createdAt.toISOString() : new Date().toISOString()};
+    });
+    db.ref('caisse_tables_ouvertes').set(Object.keys(toSave).length ? toSave : null);
+    db.ref('caisse_meta').set({currentTableId, tableCounter});
+  }catch(e){ console.error('saveTables error:',e); }
+}
+
+// Restaurer depuis Firebase au démarrage
+async function restoreFromFirebase(){
+  try{
+    const db=getDb();
+    const key=todayKey().replace(/-/g,'_');
+
+    // Restaurer historique
+    const histoSnap=await db.ref('caisse_historique/'+key).get();
+    if(histoSnap.exists() && Array.isArray(histoSnap.val())){
+      historique=histoSnap.val().filter(o=>o.date===todayKey());
+      console.log('✅ Historique restauré:',historique.length,'commandes');
+    }
+
+    // Restaurer tables ouvertes
+    const tablesSnap=await db.ref('caisse_tables_ouvertes').get();
+    const metaSnap=await db.ref('caisse_meta').get();
+    if(tablesSnap.exists() && tablesSnap.val()){
+      const savedTables=tablesSnap.val();
+      Object.entries(savedTables).forEach(([id,t])=>{
+        tables[id]={...t, createdAt: new Date(t.createdAt||Date.now())};
+      });
+      if(metaSnap.exists()){
+        const meta=metaSnap.val();
+        tableCounter=meta.tableCounter||0;
+        currentTableId=meta.currentTableId||null;
+      }
+      console.log('✅ Tables restaurées:',Object.keys(tables).length,'tables');
+    }
+
+    updateStats();
+    renderTabs();
+    if(Object.keys(tables).length===0){ newTable(); }
+    else if(!currentTableId || !tables[currentTableId]){
+      currentTableId=Object.keys(tables)[0];
+    }
+    renderOrder();
+  }catch(e){
+    console.error('Restauration Firebase échouée:',e);
+    newTable();
+  }
+}
 
 // Multi-table state
-let tables = {}; // { tableId: { id, name, items:{}, kitchenSent:false, payMode:null, paid:false, createdAt } }
+let tables = {};
 let currentTableId = null;
 let tableCounter = 0;
 let currentPayMode = null;
@@ -554,6 +698,7 @@ function newTable() {
   currentTableId = id;
   renderTabs();
   renderOrder();
+  saveTables();
 }
 
 function switchTable(id) {
@@ -602,9 +747,7 @@ function addItem(name, price) {
   const btn = document.getElementById('btn-' + name);
   if (btn) btn.classList.add('flash', 'item-btn');
   setTimeout(() => btn && btn.classList.remove('flash'), 300);
-  renderOrder();
-  renderTabs();
-  updateStats();
+  renderOrder(); renderTabs(); updateStats(); saveTables();
 }
 
 // ── RENDER ORDER ──
@@ -666,18 +809,18 @@ function changeQty(name, delta) {
   if (!t.items[name]) return;
   t.items[name].qty += delta;
   if (t.items[name].qty <= 0) delete t.items[name];
-  renderOrder(); renderTabs(); updateStats();
+  renderOrder(); renderTabs(); updateStats(); saveTables();
 }
 function removeItem(name) {
   const t = currentTable(); if (!t) return;
   delete t.items[name];
-  renderOrder(); renderTabs(); updateStats();
+  renderOrder(); renderTabs(); updateStats(); saveTables();
 }
 function clearCurrentOrder() {
   const t = currentTable(); if (!t) return;
   if (!confirm('Vider la commande ?')) return;
   t.items = {}; t.kitchenSent = false;
-  renderOrder(); renderTabs();
+  renderOrder(); renderTabs(); saveTables();
 }
 
 // ── KITCHEN TICKET ──
@@ -725,7 +868,7 @@ function printKitchenTicket() {
   w.document.close();
   setTimeout(() => { w.focus(); w.print(); }, 600);
   t.kitchenSent = true;
-  renderOrder(); renderTabs();
+  renderOrder(); renderTabs(); saveTables();
 }
 
 // ── PAYMENT ──
@@ -840,6 +983,7 @@ function closeOrder() {
   closePaymentModal();
   renderTabs();
   renderOrder();
+  saveTables();
 }
 
 // ── VALIDATE (legacy - now replaced) ──
@@ -1245,11 +1389,213 @@ function openFermeture(){
 }
 function closeFermeture(){ document.getElementById('fermetureModal').classList.remove('open'); }
 
+// ── ANALYTICS ──
+let currentSortMode = 'qty';
+
+function showAnalyticsTab(tab){
+  ['today','week','products'].forEach(t=>{
+    document.getElementById('analytics'+t.charAt(0).toUpperCase()+t.slice(1)).style.display = t===tab ? 'block' : 'none';
+    const btn=document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1));
+    if(btn){
+      btn.style.background = t===tab ? 'var(--navy)' : 'var(--surface)';
+      btn.style.color = t===tab ? 'var(--gold2)' : 'var(--muted)';
+      btn.style.borderColor = t===tab ? 'var(--navy)' : 'var(--border)';
+    }
+  });
+  if(tab==='week') renderWeekStats();
+  if(tab==='products') renderProductStats(currentSortMode);
+}
+
+function sortProducts(mode){
+  currentSortMode=mode;
+  document.getElementById('sortQty').style.background = mode==='qty' ? 'var(--navy)' : 'var(--surface)';
+  document.getElementById('sortQty').style.color = mode==='qty' ? 'var(--gold2)' : 'var(--muted)';
+  document.getElementById('sortCA').style.background = mode==='ca' ? 'var(--navy)' : 'var(--surface)';
+  document.getElementById('sortCA').style.color = mode==='ca' ? 'var(--gold2)' : 'var(--muted)';
+  renderProductStats(mode);
+}
+
+async function get7DaysHistory(){
+  // Récupérer les 7 derniers jours depuis Firebase
+  const db=getDb();
+  const days=[];
+  const allOrders=[];
+  for(let i=0;i<7;i++){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const key=d.toISOString().slice(0,10).replace(/-/g,'_');
+    const label=d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+    days.push({key,label,date:d.toISOString().slice(0,10)});
+  }
+  const results={};
+  await Promise.all(days.map(async d=>{
+    if(d.date===todayKey()){
+      results[d.key]={label:d.label, orders:[...historique]};
+    } else {
+      try{
+        const snap=await db.ref('caisse_historique/'+d.key).get();
+        results[d.key]={label:d.label, orders: snap.exists()&&Array.isArray(snap.val()) ? snap.val() : []};
+      }catch(e){ results[d.key]={label:d.label, orders:[]}; }
+    }
+  }));
+  return {days, results};
+}
+
+async function renderWeekStats(){
+  document.getElementById('weekChart').innerHTML='<div style="text-align:center;color:var(--muted);padding:20px;">⏳ Chargement...</div>';
+  const {days,results}=await get7DaysHistory();
+  let totalWk=0,bankilyWk=0,cashWk=0,countWk=0;
+  const maxTotal=Math.max(...days.map(d=>results[d.key].orders.reduce((s,o)=>s+o.total,0)),1);
+
+  let html='';
+  days.forEach(d=>{
+    const orders=results[d.key].orders;
+    const total=orders.reduce((s,o)=>s+o.total,0);
+    const bankily=orders.filter(o=>o.payMode==='bankily').reduce((s,o)=>s+o.total,0);
+    const cash=orders.filter(o=>o.payMode==='cash').reduce((s,o)=>s+o.total,0);
+    const count=orders.length;
+    totalWk+=total; bankilyWk+=bankily; cashWk+=cash; countWk+=count;
+    const pct=Math.round((total/maxTotal)*100);
+    const isToday=d.date===todayKey();
+    html+=`
+      <div style="margin-bottom:10px;padding:10px 12px;background:var(--surface);border-radius:10px;border:1px solid ${isToday?'var(--gold)':'var(--border)'};">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:600;color:${isToday?'var(--gold)':'var(--navy)'};">${isToday?'⭐ ':''} ${d.label}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--navy);font-weight:700;">${total} MRU · ${count} cmd</span>
+        </div>
+        <div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--navy),var(--gold));border-radius:4px;transition:width .5s;"></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:5px;">
+          <span style="font-size:10px;color:var(--green);">📱 ${bankily} MRU</span>
+          <span style="font-size:10px;color:var(--gold);">💵 ${cash} MRU</span>
+        </div>
+      </div>`;
+  });
+  document.getElementById('weekChart').innerHTML=html;
+  document.getElementById('wk-count').textContent=countWk;
+  document.getElementById('wk-total').textContent=totalWk+' MRU';
+  document.getElementById('wk-bankily').textContent=bankilyWk+' MRU';
+  document.getElementById('wk-cash').textContent=cashWk+' MRU';
+}
+
+async function renderProductStats(sortMode){
+  document.getElementById('topProducts').innerHTML='<div style="text-align:center;color:var(--muted);padding:10px;">⏳ Chargement...</div>';
+  document.getElementById('lowProducts').innerHTML='';
+  const {days,results}=await get7DaysHistory();
+
+  // Agréger tous les articles sur 7 jours
+  const productStats={};
+  days.forEach(d=>{
+    results[d.key].orders.forEach(order=>{
+      (order.items||[]).forEach(it=>{
+        if(!productStats[it.name]) productStats[it.name]={name:it.name,qty:0,ca:0};
+        productStats[it.name].qty+=it.qty;
+        productStats[it.name].ca+=it.subtotal;
+      });
+    });
+  });
+
+  // Tous les articles du menu
+  const allMenuItems=[];
+  Object.values(MENU).forEach(cat=>cat.forEach(([name])=>allMenuItems.push(name)));
+
+  // Trier par mode
+  const sorted=Object.values(productStats).sort((a,b)=>sortMode==='qty'?b.qty-a.qty:b.ca-a.ca);
+  const maxVal=sorted.length ? (sortMode==='qty'?sorted[0].qty:sorted[0].ca) : 1;
+
+  // Top produits
+  const medals=['🥇','🥈','🥉'];
+  let topHtml='';
+  if(!sorted.length){ topHtml='<div style="text-align:center;color:var(--muted);padding:14px;">Aucune donnée sur 7 jours</div>'; }
+  else {
+    sorted.slice(0,15).forEach((p,i)=>{
+      const val=sortMode==='qty'?p.qty:p.ca;
+      const pct=Math.round((val/maxVal)*100);
+      const label=sortMode==='qty'?`×${p.qty} vendu${p.qty>1?'s':''}`:`${p.ca} MRU`;
+      const sub=sortMode==='qty'?`${p.ca} MRU CA`:`×${p.qty} vendu${p.qty>1?'s':''}`;
+      topHtml+=`
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface);border-radius:10px;margin-bottom:5px;border:1px solid var(--border);">
+          <span style="font-size:16px;width:24px;text-align:center;">${medals[i]||'·'}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
+            <div style="height:5px;background:var(--bg);border-radius:3px;margin-top:4px;overflow:hidden;">
+              <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--navy),var(--gold));border-radius:3px;"></div>
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">${sub}</div>
+          </div>
+          <span style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--gold);white-space:nowrap;">${label}</span>
+        </div>`;
+    });
+  }
+  document.getElementById('topProducts').innerHTML=topHtml;
+
+  // Produits jamais ou peu commandés (≤1 fois sur 7 jours)
+  const neverOrdered=allMenuItems.filter(name=>!productStats[name]);
+  const rarelyOrdered=allMenuItems.filter(name=>productStats[name]&&productStats[name].qty<=2);
+  let lowHtml='';
+  if(!neverOrdered.length&&!rarelyOrdered.length){
+    lowHtml='<div style="text-align:center;color:var(--green);padding:10px;font-size:12px;">✅ Tous les produits ont été commandés !</div>';
+  } else {
+    if(neverOrdered.length){
+      lowHtml+=`<div style="font-size:10px;color:var(--red);font-weight:700;letter-spacing:1px;margin-bottom:5px;">JAMAIS COMMANDÉS (7j)</div>`;
+      neverOrdered.forEach(name=>{
+        lowHtml+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:rgba(192,57,43,.05);border:1px solid rgba(192,57,43,.2);border-radius:8px;margin-bottom:4px;font-size:12px;color:var(--red);">
+          <span>⚠ ${name}</span><span style="font-size:10px;opacity:.7;">0 vente</span></div>`;
+      });
+    }
+    if(rarelyOrdered.length){
+      lowHtml+=`<div style="font-size:10px;color:var(--amber,#BA7517);font-weight:700;letter-spacing:1px;margin:8px 0 5px;">PEU COMMANDÉS (≤2 fois)</div>`;
+      rarelyOrdered.forEach(name=>{
+        const qty=productStats[name]?.qty||0;
+        lowHtml+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:rgba(184,148,42,.05);border:1px solid rgba(184,148,42,.2);border-radius:8px;margin-bottom:4px;font-size:12px;color:var(--gold);">
+          <span>📉 ${name}</span><span style="font-size:10px;opacity:.8;">×${qty} seulement</span></div>`;
+      });
+    }
+  }
+  document.getElementById('lowProducts').innerHTML=lowHtml;
+}
+
+function openStats(){
+  const now=new Date();
+  document.getElementById('statsDate').textContent=now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).toUpperCase();
+  // Remplir onglet aujourd'hui
+  const bankily=historique.filter(o=>o.payMode==='bankily').reduce((s,o)=>s+o.total,0);
+  const cash=historique.filter(o=>o.payMode==='cash').reduce((s,o)=>s+o.total,0);
+  const total=historique.reduce((s,o)=>s+o.total,0);
+  document.getElementById('st-count').textContent=historique.length;
+  document.getElementById('st-bankily').textContent=bankily+' MRU';
+  document.getElementById('st-cash').textContent=cash+' MRU';
+  document.getElementById('st-total').textContent=total+' MRU';
+  const list=document.getElementById('statsOrderList');
+  if(!historique.length){
+    list.innerHTML='<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px;">Aucune commande aujourd\'hui</div>';
+  } else {
+    list.innerHTML=historique.slice().reverse().map(o=>`
+      <div style="padding:10px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;background:var(--surface);">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:12px;font-weight:600;color:var(--navy);">${o.tableName||'Commande'}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--gold);font-weight:700;">${o.total} MRU</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px;">${o.time} · ${o.payMode==='bankily'?'📱 Bankily':'💵 Cash'}</div>
+      </div>`).join('');
+  }
+  showAnalyticsTab('today');
+  document.getElementById('statsModal').classList.add('open');
+}
+
 function resetCaisse(){
   if(!confirm('Clôturer la journée et remettre tous les compteurs à zéro ?')) return;
   const totalJour=historique.reduce((s,o)=>s+o.total,0);
   const nbCommandes=historique.length;
   historique=[]; saveHisto(); updateStats();
+  // Nettoyer Firebase
+  try{
+    const db=getDb();
+    const key=todayKey().replace(/-/g,'_');
+    db.ref('caisse_historique/'+key).remove();
+    db.ref('caisse_tables_ouvertes').remove();
+    db.ref('caisse_meta').remove();
+  }catch(e){}
   closeFermeture();
   alert(`✅ Caisse clôturée !\n\nTotal du jour : ${totalJour} MRU\nCommandes : ${nbCommandes}\n\nCompteurs remis à zéro.`);
 }
@@ -1347,13 +1693,22 @@ function generateRapport(){
 }
 
 // Close modals on backdrop
-['modal','historyModal','fermetureModal','paymentModal'].forEach(id=>{
+['modal','historyModal','fermetureModal','paymentModal','statsModal'].forEach(id=>{
   const el=document.getElementById(id);
   if(el) el.addEventListener('click',function(e){ if(e.target===this) this.classList.remove('open'); });
 });
 
 buildMenu();
-newTable(); // Start with one open table
+// Initialiser Firebase caisse et restaurer les données
+window.addEventListener('load', function(){
+  initFirebaseCaisse();
+  if(sessionStorage.getItem('caisse_auth')==='1'){
+    restoreFromFirebase();
+    setTimeout(listenServeuseOrders, 600);
+  } else {
+    newTable();
+  }
+});
 </script>
 </body>
 </html>
