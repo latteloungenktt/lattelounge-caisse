@@ -512,32 +512,7 @@ function togglePwd() {
 function logout() {
   if (!confirm('Se déconnecter de la caisse ?')) return;
   sessionStorage.removeItem('caisse_auth');
-  document.getElementById('pwdInput').value = '';
-  document.getElementById('loginError').textContent = '';
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('loginScreen').style.opacity = '1';
-}
-// Auto-login si session active
-if (sessionStorage.getItem('caisse_auth') === '1') {
-  document.getElementById('loginScreen').style.display = 'none';
-  startCaisse();
-}
-function togglePwd() {
-  const inp = document.getElementById('pwdInput');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-}
-function logout() {
-  if (!confirm('Se déconnecter de la caisse ?')) return;
-  sessionStorage.removeItem('caisse_auth');
-  document.getElementById('pwdInput').value = '';
-  document.getElementById('loginError').textContent = '';
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('loginScreen').style.opacity = '1';
-}
-// Auto-login si session active
-if (sessionStorage.getItem('caisse_auth') === '1') {
-  document.getElementById('loginScreen').style.display = 'none';
-  startCaisse();
+  location.reload();
 }
 
 // ── MENU DATA ──
@@ -553,11 +528,14 @@ const MENU = {
     ["Jus D'Orange",100],["Jus De Citron",100],["Jus De Pomme",100],
     ["Jus D'Avocat",100],["Jus De Mangue",100],["Jus De Pastèque",100],
     ["Jus D'Ananas",100],["Jus De Kiwi",100],
-    ["Jus De Banane",100],["Jus De Cocktail",100],
+    ["Jus De Banane",100],["Jus De Gingembre",100],["Jus De Concombre",100],
+    ["Jus De Cocktail",150],
   ],
   "🥛 Milkshakes": [
     ["Milkshake Fraise",150],["Milkshake Vanille",150],
-    ["Milkshake Chocolat",150],["Milkshake Lotus ou Oreo",200],
+    ["Milkshake Chocolat",150],["Milkshake Banana",150],
+    ["Milkshake Mango",150],["Milkshake Avocat",150],
+    ["Milkshake Lotus ou Oreo",200],
   ],
   "🌿 Mojitos & Froides": [
     ["Mojito Classic",150],["Mojito Ananas",150],
@@ -610,10 +588,16 @@ const MENU = {
   ],
 };
 
-// ── STATE ──
+// ── STATE (déclaré AVANT toute fonction qui l'utilise) ──
 const todayKey = () => new Date().toISOString().slice(0,10);
 let historique = [];
+let tables = {};
+let currentTableId = null;
+let tableCounter = 0;
+let currentPayMode = null;
 let fbApp_caisse = null;
+let _saveTimer = null;
+let _caisseStarted = false;
 
 const FB_CFG = {
   apiKey:"AIzaSyBZnorgx0FgFzQk-ynMWLWAGblA1797wL8",
@@ -630,54 +614,136 @@ function getDB(){
   return firebase.database(fbApp_caisse);
 }
 
-function saveHisto(){
-  const key = todayKey().replace(/-/g,'_');
-  try{ getDB().ref('caisse_historique/'+key).set(historique); }catch(e){ console.warn(e); }
+// ── SÉRIALISATION ROBUSTE ──
+// Convertit les items en tableau pour éviter que Firebase perde les clés
+function serializeTable(t){
+  const itemsArr = Object.entries(t.items||{}).map(([name,v])=>({
+    name, price: v.price, qty: v.qty
+  }));
+  return {
+    id: t.id,
+    name: t.name || 'Table',
+    itemsArr,                       // tableau au lieu d'objet
+    kitchenSent: !!t.kitchenSent,
+    fromServeuse: !!t.fromServeuse,
+    notes: t.notes || '',
+    createdAt: t.createdAt ? (t.createdAt.toISOString ? t.createdAt.toISOString() : t.createdAt) : new Date().toISOString()
+  };
 }
 
-function saveTables(){
-  try{
-    const toSave={};
-    Object.entries(tables).forEach(([id,t])=>{
-      toSave[id]={...t,createdAt:t.createdAt?t.createdAt.toISOString():new Date().toISOString()};
+// Reconstruit une table depuis Firebase (gère ancien et nouveau format)
+function deserializeTable(raw){
+  const items = {};
+  if(Array.isArray(raw.itemsArr)){
+    // Nouveau format (tableau)
+    raw.itemsArr.forEach(it=>{ if(it&&it.name) items[it.name]={price:it.price,qty:it.qty}; });
+  } else if(raw.items && typeof raw.items==='object'){
+    // Ancien format (objet)
+    Object.entries(raw.items).forEach(([name,v])=>{
+      if(v&&typeof v==='object') items[name]={price:v.price,qty:v.qty};
     });
-    getDB().ref('caisse_tables_ouvertes').set(Object.keys(toSave).length?toSave:null);
-    getDB().ref('caisse_meta').set({currentTableId,tableCounter});
-  }catch(e){ console.warn(e); }
+  }
+  return {
+    id: raw.id,
+    name: raw.name || 'Table',
+    items,
+    kitchenSent: !!raw.kitchenSent,
+    fromServeuse: !!raw.fromServeuse,
+    notes: raw.notes || '',
+    payMode: null, paid: false,
+    createdAt: new Date(raw.createdAt || Date.now())
+  };
 }
 
+function saveHisto(){
+  if(sessionStorage.getItem('caisse_auth')!=='1') return; // pas avant login
+  const key = todayKey().replace(/-/g,'_');
+  try{ getDB().ref('caisse_historique/'+key).set(historique); }catch(e){ console.warn('saveHisto:',e); }
+}
+
+// Sauvegarde tables — debounce pour éviter les écritures multiples
+function saveTables(){
+  if(sessionStorage.getItem('caisse_auth')!=='1') return; // pas avant login
+  if(_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(()=>{
+    try{
+      const toSave={};
+      Object.entries(tables).forEach(([id,t])=>{ toSave[id]=serializeTable(t); });
+      getDB().ref('caisse_tables_ouvertes').set(Object.keys(toSave).length ? toSave : null);
+      getDB().ref('caisse_meta').set({currentTableId, tableCounter, ts:Date.now()});
+    }catch(e){ console.warn('saveTables:',e); }
+  }, 250);
+}
+
+// ── DÉMARRAGE CAISSE (robuste, avec retry) ──
 async function startCaisse(){
+  if(_caisseStarted) return;
+  _caisseStarted = true;
+
+  // Réinitialiser l'état (efface la table pré-login éventuelle)
+  tables = {};
+  currentTableId = null;
+  tableCounter = 0;
+
+  const key=todayKey().replace(/-/g,'_');
+
+  // 1. Charger l'historique
   try{
-    const key=todayKey().replace(/-/g,'_');
-    const db=getDB();
-    const [hSnap,tSnap,mSnap]=await Promise.all([
-      db.ref('caisse_historique/'+key).get(),
-      db.ref('caisse_tables_ouvertes').get(),
-      db.ref('caisse_meta').get()
+    const hSnap=await getDB().ref('caisse_historique/'+key).get();
+    if(hSnap.exists() && Array.isArray(hSnap.val())){
+      historique=hSnap.val().filter(o=>o && o.date===todayKey());
+    }
+  }catch(e){ console.warn('Load histo:',e); }
+
+  // 2. Charger les tables ouvertes
+  try{
+    const [tSnap,mSnap]=await Promise.all([
+      getDB().ref('caisse_tables_ouvertes').get(),
+      getDB().ref('caisse_meta').get()
     ]);
-    if(hSnap.exists()&&Array.isArray(hSnap.val()))
-      historique=hSnap.val().filter(o=>o.date===todayKey());
-    if(tSnap.exists()&&tSnap.val())
-      Object.entries(tSnap.val()).forEach(([id,t])=>{
-        tables[id]={...t,createdAt:new Date(t.createdAt||Date.now())};
+    if(tSnap.exists() && tSnap.val()){
+      const raw=tSnap.val();
+      tables={};
+      Object.entries(raw).forEach(([id,t])=>{
+        if(t) tables[id]=deserializeTable(t);
       });
+    }
     if(mSnap.exists()){
       const m=mSnap.val();
-      if(m.tableCounter) tableCounter=m.tableCounter;
-      if(m.currentTableId&&tables[m.currentTableId]) currentTableId=m.currentTableId;
+      if(m.tableCounter) tableCounter=Math.max(tableCounter, m.tableCounter);
+      if(m.currentTableId && tables[m.currentTableId]) currentTableId=m.currentTableId;
     }
-  }catch(e){ console.warn('Restore error:',e); }
-  updateStats(); renderTabs();
-  if(!Object.keys(tables).length) newTable();
-  else{ if(!currentTableId||!tables[currentTableId]) currentTableId=Object.keys(tables)[0]; renderOrder(); }
-  setTimeout(listenServeuseOrders,500);
-}
+  }catch(e){ console.warn('Load tables:',e); }
 
-// Multi-table state
-let tables = {};
-let currentTableId = null;
-let tableCounter = 0;
-let currentPayMode = null;
+  // 3. Afficher
+  updateStats();
+  renderTabs();
+  if(!Object.keys(tables).length){
+    newTable();
+  } else {
+    if(!currentTableId || !tables[currentTableId]){
+      currentTableId = Object.keys(tables)[0];
+    }
+    renderOrder();
+  }
+
+  // 4. Listener temps réel pour l'historique (mise à jour live sur autre machine)
+  try{
+    getDB().ref('caisse_historique/'+key).on('value', snap=>{
+      if(snap.exists() && Array.isArray(snap.val())){
+        const fresh=snap.val().filter(o=>o && o.date===todayKey());
+        // Ne mettre à jour que si différent (évite boucle)
+        if(JSON.stringify(fresh)!==JSON.stringify(historique)){
+          historique=fresh;
+          updateStats();
+        }
+      }
+    });
+  }catch(e){ console.warn('Listen histo:',e); }
+
+  // 5. Listener serveuse
+  setTimeout(listenServeuseOrders, 500);
+}
 
 function newTable() {
   tableCounter++;
@@ -693,15 +759,19 @@ function switchTable(id) {
   currentTableId = id;
   renderTabs();
   renderOrder();
+  saveTables();
 }
 
 function renderTabs() {
   const container = document.getElementById('openOrdersTabs');
+  if(!container) return;
   container.innerHTML = '';
   Object.values(tables).forEach(t => {
+    if(!t) return;
+    if(!t.items) t.items = {}; // garde-fou
     const tab = document.createElement('div');
     const icon = t.fromServeuse ? '👩‍💼' : (t.kitchenSent ? '🍳' : '📋');
-    const total = Object.values(t.items).reduce((s,v)=>s+v.price*v.qty,0);
+    const total = Object.values(t.items).reduce((s,v)=>s+(v.price*v.qty),0);
     tab.className = 'order-tab' + (t.id === currentTableId ? ' active' : '') + (t.kitchenSent ? ' kitchen-sent' : '');
     if(t.fromServeuse && t.id !== currentTableId) tab.style.borderColor = 'var(--gold)';
     tab.innerHTML = `<span onclick="switchTable('${t.id}')">${icon} ${t.name} · ${total} MRU</span><span class="tab-close" onclick="removeTable('${t.id}')">✕</span>`;
@@ -721,15 +791,20 @@ function removeTable(id) {
   }
   renderTabs();
   renderOrder();
+  saveTables();
 }
 
 function currentTable() { return tables[currentTableId] || null; }
 
 // ── ADD ITEM ──
 function addItem(name, price) {
-  if (!currentTableId || !tables[currentTableId]) { newTable(); }
-  const t = currentTable();
+  // Garde-fou : toujours avoir une table valide
+  if (!currentTableId || !tables[currentTableId]) {
+    newTable();
+  }
+  const t = tables[currentTableId];
   if (!t) return;
+  if (!t.items) t.items = {}; // garde-fou
   if (t.items[name]) t.items[name].qty++;
   else t.items[name] = { price, qty: 1 };
   const btn = document.getElementById('btn-' + name);
@@ -751,6 +826,7 @@ function renderOrder() {
     document.getElementById('btnPayment').disabled = true;
     return;
   }
+  if(!t.items) t.items = {}; // garde-fou
   label.innerHTML = `${t.fromServeuse ? '👩‍💼' : '📋'} ${t.name} ${t.kitchenSent ? '<span class="kitchen-badge">Cuisine ✓</span>' : ''}`;
   // Afficher les notes serveuse si présentes
   let notesBar = document.getElementById('serveuseNotesBar');
@@ -758,7 +834,7 @@ function renderOrder() {
     if(!notesBar){ notesBar=document.createElement('div'); notesBar.id='serveuseNotesBar'; notesBar.style.cssText='padding:6px 14px;background:rgba(184,148,42,.08);border-bottom:1px solid var(--border);font-size:12px;color:var(--gold);'; document.getElementById('orderList').before(notesBar); }
     notesBar.textContent='📝 '+t.notes;
   } else {
-    if(notesBar) notesBar.remove();
+    if(notesBar && notesBar.parentNode) notesBar.parentNode.removeChild(notesBar);
   }
   const items = Object.entries(t.items);
   if (!items.length) {
@@ -1053,6 +1129,7 @@ function showServeuseNotif(order,key){
     currentTableId = tableId;
     renderTabs();
     renderOrder();
+    saveTables(); // persister la table serveuse dans Firebase
 
     // Son d'alerte
     try{ playAlert(); }catch(e){}
@@ -1683,8 +1760,16 @@ function generateRapport(){
 });
 
 buildMenu();
-// Si pas encore connecté, créer une table vide pour que le menu soit cliquable
-if(sessionStorage.getItem('caisse_auth') !== '1'){
+
+// ── DÉMARRAGE CENTRALISÉ ──
+// buildMenu est fait, le DOM est prêt. On démarre selon l'état de connexion.
+if(sessionStorage.getItem('caisse_auth') === '1'){
+  // Déjà connecté : masquer login et restaurer depuis Firebase
+  const ls = document.getElementById('loginScreen');
+  if(ls) ls.style.display = 'none';
+  startCaisse();
+} else {
+  // Pas connecté : créer une table vide pour que le menu soit cliquable dès le login
   newTable();
 }
 </script>
