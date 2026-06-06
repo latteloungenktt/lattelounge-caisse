@@ -522,12 +522,12 @@ function logout() {
 // Auto-login si session active
 if (sessionStorage.getItem('caisse_auth') === '1') {
   document.getElementById('loginScreen').style.display = 'none';
-  // Init Firebase immédiatement
-  document.addEventListener('DOMContentLoaded', function(){
+  // Init Firebase après que tout le script soit chargé
+  setTimeout(function(){
     initFirebaseCaisse();
     restoreFromFirebase();
-    setTimeout(listenServeuseOrders, 600);
-  });
+    setTimeout(listenServeuseOrders, 800);
+  }, 100);
 }
 
 // ── MENU DATA ──
@@ -746,7 +746,7 @@ function currentTable() { return tables[currentTableId] || null; }
 
 // ── ADD ITEM ──
 function addItem(name, price) {
-  if (!currentTableId) { newTable(); }
+  if (!currentTableId || !tables[currentTableId]) { newTable(); }
   const t = currentTable();
   if (!t) return;
   if (t.items[name]) t.items[name].qty++;
@@ -1706,7 +1706,10 @@ function generateRapport(){
 });
 
 buildMenu();
-
+// Si pas encore connecté, créer une table vide pour que le menu soit cliquable
+if(sessionStorage.getItem('caisse_auth') !== '1'){
+  newTable();
+}
 </script>
 </body>
 </html>
