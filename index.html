@@ -627,27 +627,26 @@ function getDb(){
 
 // Sauvegarde historique dans Firebase
 function saveHisto(){
+  // Sauvegarde Firebase
   try{
     const db=getDb();
     const key=todayKey().replace(/-/g,'_');
     db.ref('caisse_historique/'+key).set(historique);
-  }catch(e){ console.error('saveHisto error:',e); }
-  // Aussi en localStorage comme backup
+  }catch(e){ console.warn('saveHisto Firebase error:',e); }
+  // Backup localStorage
   try{ localStorage.setItem('latte_histo_'+todayKey(), JSON.stringify(historique)); }catch(e){}
 }
 
-// Sauvegarde tables ouvertes dans Firebase
 function saveTables(){
   try{
     const db=getDb();
-    // Sérialiser les tables (convertir Date en string)
     const toSave={};
     Object.entries(tables).forEach(([id,t])=>{
       toSave[id]={...t, createdAt: t.createdAt ? t.createdAt.toISOString() : new Date().toISOString()};
     });
     db.ref('caisse_tables_ouvertes').set(Object.keys(toSave).length ? toSave : null);
     db.ref('caisse_meta').set({currentTableId, tableCounter});
-  }catch(e){ console.error('saveTables error:',e); }
+  }catch(e){ console.warn('saveTables error:',e); }
 }
 
 // Restaurer depuis Firebase au démarrage
@@ -746,15 +745,22 @@ function currentTable() { return tables[currentTableId] || null; }
 
 // ── ADD ITEM ──
 function addItem(name, price) {
-  if (!currentTableId || !tables[currentTableId]) { newTable(); }
-  const t = currentTable();
-  if (!t) return;
-  if (t.items[name]) t.items[name].qty++;
-  else t.items[name] = { price, qty: 1 };
-  const btn = document.getElementById('btn-' + name);
-  if (btn) btn.classList.add('flash', 'item-btn');
-  setTimeout(() => btn && btn.classList.remove('flash'), 300);
-  renderOrder(); renderTabs(); updateStats(); saveTables();
+  try {
+    if (!currentTableId || !tables[currentTableId]) { newTable(); }
+    const t = currentTable();
+    if (!t) return;
+    if (t.items[name]) t.items[name].qty++;
+    else t.items[name] = { price, qty: 1 };
+    const btn = document.getElementById('btn-' + name);
+    if (btn) { btn.classList.add('flash'); setTimeout(() => btn.classList.remove('flash'), 300); }
+    renderOrder();
+    renderTabs();
+    updateStats();
+    // Sauvegarde Firebase en arrière-plan — ne bloque jamais le menu
+    setTimeout(() => { try{ saveTables(); }catch(e){ console.warn('saveTables:',e); } }, 0);
+  } catch(e) {
+    console.error('addItem error:', e);
+  }
 }
 
 // ── RENDER ORDER ──
