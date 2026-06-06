@@ -496,9 +496,7 @@ function checkPwd() {
     document.getElementById('loginScreen').style.transition = 'opacity .4s';
     setTimeout(() => document.getElementById('loginScreen').style.display = 'none', 400);
     sessionStorage.setItem('caisse_auth', '1');
-    initFirebaseCaisse();
-    restoreFromFirebase();
-    setTimeout(listenServeuseOrders, 600);
+    startCaisse();
   } else {
     const err = document.getElementById('loginError');
     err.textContent = '❌ Mot de passe incorrect';
@@ -506,6 +504,22 @@ function checkPwd() {
     document.getElementById('pwdInput').focus();
     setTimeout(() => err.textContent = '', 3000);
   }
+}
+
+function startCaisse(){
+  // 1. Restaurer depuis localStorage immédiatement
+  restoreFromLocal();
+  updateStats();
+  renderTabs();
+  if(Object.keys(tables).length===0) newTable();
+  else if(!currentTableId||!tables[currentTableId]) currentTableId=Object.keys(tables)[0];
+  renderOrder();
+  // 2. Init Firebase en arrière-plan
+  setTimeout(()=>{
+    initFirebaseCaisse();
+    syncFromFirebase(); // sync si autre machine
+    setTimeout(listenServeuseOrders, 800);
+  }, 200);
 }
 function togglePwd() {
   const inp = document.getElementById('pwdInput');
@@ -522,12 +536,7 @@ function logout() {
 // Auto-login si session active
 if (sessionStorage.getItem('caisse_auth') === '1') {
   document.getElementById('loginScreen').style.display = 'none';
-  // Init Firebase après que tout le script soit chargé
-  setTimeout(function(){
-    initFirebaseCaisse();
-    restoreFromFirebase();
-    setTimeout(listenServeuseOrders, 800);
-  }, 100);
+  startCaisse();
 }
 
 // ── MENU DATA ──
@@ -603,90 +612,122 @@ const MENU = {
 // ── STATE ──
 const todayKey = () => new Date().toISOString().slice(0,10);
 let historique = [];
-let fbCaisse = null; // Firebase instance for caisse data
+let fbCaisse = null;
+let firebaseReady = false;
 
-// ── FIREBASE CAISSE — initialisé immédiatement ──
+// ── LOCALSTORAGE (source principale — instantanée) ──
+function saveHisto(){
+  try{ localStorage.setItem('latte_histo_'+todayKey(), JSON.stringify(historique)); }catch(e){}
+  syncFirebase(); // sync Firebase en arrière-plan
+}
+
+function saveTables(){
+  try{
+    const toSave={};
+    Object.entries(tables).forEach(([id,t])=>{
+      toSave[id]={...t, createdAt: t.createdAt ? t.createdAt.toISOString() : new Date().toISOString()};
+    });
+    localStorage.setItem('latte_tables', JSON.stringify(toSave));
+    localStorage.setItem('latte_meta', JSON.stringify({currentTableId, tableCounter}));
+  }catch(e){}
+  syncFirebase();
+}
+
+function restoreFromLocal(){
+  // Restaurer historique
+  try{
+    const h=JSON.parse(localStorage.getItem('latte_histo_'+todayKey())||'[]');
+    if(Array.isArray(h)) historique=h.filter(o=>o.date===todayKey());
+  }catch(e){}
+  // Restaurer tables
+  try{
+    const t=JSON.parse(localStorage.getItem('latte_tables')||'{}');
+    const m=JSON.parse(localStorage.getItem('latte_meta')||'{}');
+    Object.entries(t).forEach(([id,tbl])=>{
+      tables[id]={...tbl, createdAt:new Date(tbl.createdAt||Date.now())};
+    });
+    if(m.tableCounter) tableCounter=m.tableCounter;
+    if(m.currentTableId && tables[m.currentTableId]) currentTableId=m.currentTableId;
+    console.log('✅ Restauré depuis localStorage:',Object.keys(tables).length,'tables,',historique.length,'commandes');
+  }catch(e){}
+}
+
+// ── FIREBASE (sync secondaire — en arrière-plan) ──
 function initFirebaseCaisse(){
-  if(fbCaisse) return firebase.database(fbCaisse); // déjà initialisé
+  if(firebaseReady) return;
+  if(typeof firebase === 'undefined'){ return; }
   const fbConfig={
     apiKey:"AIzaSyBZnorgx0FgFzQk-ynMWLWAGblA1797wL8",
     databaseURL:"https://latte-lounge-caisse-default-rtdb.europe-west1.firebasedatabase.app",
     projectId:"latte-lounge-caisse",
     appId:"1:864095614648:web:4d827e02772b5b73fca64d"
   };
-  try{ fbCaisse=firebase.app('caisse'); }
-  catch(e){ fbCaisse=firebase.initializeApp(fbConfig,'caisse'); }
-  console.log('✅ Firebase caisse initialisé');
-  return firebase.database(fbCaisse);
+  try{
+    try{ fbCaisse=firebase.app('caisse'); }
+    catch(e){ fbCaisse=firebase.initializeApp(fbConfig,'caisse'); }
+    firebaseReady=true;
+    console.log('✅ Firebase caisse prêt');
+  }catch(e){ console.warn('Firebase init error:',e); }
 }
 
 function getDb(){
-  if(!fbCaisse) initFirebaseCaisse();
+  if(!firebaseReady) initFirebaseCaisse();
+  if(!firebaseReady) throw new Error('Firebase pas prêt');
   return firebase.database(fbCaisse);
 }
 
-// Sauvegarde historique dans Firebase
-function saveHisto(){
-  // Sauvegarde Firebase
-  try{
-    const db=getDb();
-    const key=todayKey().replace(/-/g,'_');
-    db.ref('caisse_historique/'+key).set(historique);
-  }catch(e){ console.warn('saveHisto Firebase error:',e); }
-  // Backup localStorage
-  try{ localStorage.setItem('latte_histo_'+todayKey(), JSON.stringify(historique)); }catch(e){}
-}
-
-function saveTables(){
-  try{
-    const db=getDb();
-    const toSave={};
-    Object.entries(tables).forEach(([id,t])=>{
-      toSave[id]={...t, createdAt: t.createdAt ? t.createdAt.toISOString() : new Date().toISOString()};
-    });
-    db.ref('caisse_tables_ouvertes').set(Object.keys(toSave).length ? toSave : null);
-    db.ref('caisse_meta').set({currentTableId, tableCounter});
-  }catch(e){ console.warn('saveTables error:',e); }
-}
-
-// Restaurer depuis Firebase au démarrage
-async function restoreFromFirebase(){
-  try{
-    const db=getDb();
-    const key=todayKey().replace(/-/g,'_');
-
-    // Restaurer historique
-    const histoSnap=await db.ref('caisse_historique/'+key).get();
-    if(histoSnap.exists() && Array.isArray(histoSnap.val())){
-      historique=histoSnap.val().filter(o=>o.date===todayKey());
-      console.log('✅ Historique restauré:',historique.length,'commandes');
-    }
-
-    // Restaurer tables ouvertes
-    const tablesSnap=await db.ref('caisse_tables_ouvertes').get();
-    const metaSnap=await db.ref('caisse_meta').get();
-    if(tablesSnap.exists() && tablesSnap.val()){
-      const savedTables=tablesSnap.val();
-      Object.entries(savedTables).forEach(([id,t])=>{
-        tables[id]={...t, createdAt: new Date(t.createdAt||Date.now())};
+function syncFirebase(){
+  // Sync en arrière-plan — jamais bloquant
+  setTimeout(()=>{
+    try{
+      const db=getDb();
+      const key=todayKey().replace(/-/g,'_');
+      db.ref('caisse_historique/'+key).set(historique);
+      const toSave={};
+      Object.entries(tables).forEach(([id,t])=>{
+        toSave[id]={...t, createdAt: t.createdAt ? t.createdAt.toISOString() : new Date().toISOString()};
       });
-      if(metaSnap.exists()){
-        const meta=metaSnap.val();
-        tableCounter=meta.tableCounter||0;
-        currentTableId=meta.currentTableId||null;
-      }
-      console.log('✅ Tables restaurées:',Object.keys(tables).length,'tables');
-    }
+      db.ref('caisse_tables_ouvertes').set(Object.keys(toSave).length ? toSave : null);
+      db.ref('caisse_meta').set({currentTableId, tableCounter});
+    }catch(e){ /* Firebase pas dispo - pas grave, localStorage a tout */ }
+  }, 0);
+}
 
-    updateStats();
-    renderTabs();
-    if(Object.keys(tables).length===0){ newTable(); }
-    else if(!currentTableId || !tables[currentTableId]){
-      currentTableId=Object.keys(tables)[0];
+// Restaurer depuis Firebase si localStorage vide (autre machine)
+async function syncFromFirebase(){
+  try{
+    const db=getDb();
+    const key=todayKey().replace(/-/g,'_');
+    // Seulement si localStorage est vide
+    if(Object.keys(tables).length===0){
+      const [tablesSnap, metaSnap, histoSnap]=await Promise.all([
+        db.ref('caisse_tables_ouvertes').get(),
+        db.ref('caisse_meta').get(),
+        db.ref('caisse_historique/'+key).get()
+      ]);
+      if(histoSnap.exists()&&Array.isArray(histoSnap.val())){
+        historique=histoSnap.val().filter(o=>o.date===todayKey());
+      }
+      if(tablesSnap.exists()&&tablesSnap.val()){
+        Object.entries(tablesSnap.val()).forEach(([id,t])=>{
+          tables[id]={...t, createdAt:new Date(t.createdAt||Date.now())};
+        });
+      }
+      if(metaSnap.exists()){
+        const m=metaSnap.val();
+        if(m.tableCounter) tableCounter=m.tableCounter;
+        if(m.currentTableId&&tables[m.currentTableId]) currentTableId=m.currentTableId;
+      }
+      if(Object.keys(tables).length>0){
+        console.log('✅ Sync depuis Firebase:',Object.keys(tables).length,'tables');
+        renderTabs(); renderOrder(); updateStats();
+      }
     }
-    renderOrder();
+    if(Object.keys(tables).length===0) newTable();
+    else if(!currentTableId||!tables[currentTableId]) currentTableId=Object.keys(tables)[0];
+    renderTabs(); renderOrder(); updateStats();
   }catch(e){
-    console.error('Restauration Firebase échouée:',e);
+    console.warn('syncFromFirebase échoué:',e);
     if(Object.keys(tables).length===0) newTable();
   }
 }
@@ -1601,11 +1642,15 @@ function resetCaisse(){
   const totalJour=historique.reduce((s,o)=>s+o.total,0);
   const nbCommandes=historique.length;
   historique=[]; saveHisto(); updateStats();
+  // Nettoyer localStorage
+  try{
+    localStorage.removeItem('latte_histo_'+todayKey());
+    localStorage.removeItem('latte_tables');
+    localStorage.removeItem('latte_meta');
+  }catch(e){}
   // Nettoyer Firebase
   try{
     const db=getDb();
-    const key=todayKey().replace(/-/g,'_');
-    db.ref('caisse_historique/'+key).remove();
     db.ref('caisse_tables_ouvertes').remove();
     db.ref('caisse_meta').remove();
   }catch(e){}
