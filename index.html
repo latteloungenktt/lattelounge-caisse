@@ -496,7 +496,9 @@ function checkPwd() {
     document.getElementById('loginScreen').style.transition = 'opacity .4s';
     setTimeout(() => document.getElementById('loginScreen').style.display = 'none', 400);
     sessionStorage.setItem('caisse_auth', '1');
-    setTimeout(listenServeuseOrders, 500);
+    initFirebaseCaisse();
+    restoreFromFirebase();
+    setTimeout(listenServeuseOrders, 600);
   } else {
     const err = document.getElementById('loginError');
     err.textContent = '❌ Mot de passe incorrect';
@@ -517,16 +519,16 @@ function logout() {
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginScreen').style.opacity = '1';
 }
-// Auto-login if session active
+// Auto-login si session active
 if (sessionStorage.getItem('caisse_auth') === '1') {
   document.getElementById('loginScreen').style.display = 'none';
+  // Init Firebase immédiatement
+  document.addEventListener('DOMContentLoaded', function(){
+    initFirebaseCaisse();
+    restoreFromFirebase();
+    setTimeout(listenServeuseOrders, 600);
+  });
 }
-// Démarrer le listener serveuse après chargement complet
-window.addEventListener('load', function(){
-  if(sessionStorage.getItem('caisse_auth')==='1'){
-    setTimeout(listenServeuseOrders, 500);
-  }
-});
 
 // ── MENU DATA ──
 const MENU = {
@@ -603,8 +605,9 @@ const todayKey = () => new Date().toISOString().slice(0,10);
 let historique = [];
 let fbCaisse = null; // Firebase instance for caisse data
 
-// ── FIREBASE CAISSE ──
+// ── FIREBASE CAISSE — initialisé immédiatement ──
 function initFirebaseCaisse(){
+  if(fbCaisse) return firebase.database(fbCaisse); // déjà initialisé
   const fbConfig={
     apiKey:"AIzaSyBZnorgx0FgFzQk-ynMWLWAGblA1797wL8",
     databaseURL:"https://latte-lounge-caisse-default-rtdb.europe-west1.firebasedatabase.app",
@@ -613,10 +616,14 @@ function initFirebaseCaisse(){
   };
   try{ fbCaisse=firebase.app('caisse'); }
   catch(e){ fbCaisse=firebase.initializeApp(fbConfig,'caisse'); }
+  console.log('✅ Firebase caisse initialisé');
   return firebase.database(fbCaisse);
 }
 
-function getDb(){ return firebase.database(fbCaisse); }
+function getDb(){
+  if(!fbCaisse) initFirebaseCaisse();
+  return firebase.database(fbCaisse);
+}
 
 // Sauvegarde historique dans Firebase
 function saveHisto(){
@@ -681,7 +688,7 @@ async function restoreFromFirebase(){
     renderOrder();
   }catch(e){
     console.error('Restauration Firebase échouée:',e);
-    newTable();
+    if(Object.keys(tables).length===0) newTable();
   }
 }
 
@@ -1699,16 +1706,7 @@ function generateRapport(){
 });
 
 buildMenu();
-// Initialiser Firebase caisse et restaurer les données
-window.addEventListener('load', function(){
-  initFirebaseCaisse();
-  if(sessionStorage.getItem('caisse_auth')==='1'){
-    restoreFromFirebase();
-    setTimeout(listenServeuseOrders, 600);
-  } else {
-    newTable();
-  }
-});
+
 </script>
 </body>
 </html>
