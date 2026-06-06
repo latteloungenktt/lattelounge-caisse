@@ -505,21 +505,22 @@ function checkPwd() {
     setTimeout(() => err.textContent = '', 3000);
   }
 }
-
-function startCaisse(){
-  // 1. Restaurer depuis localStorage immédiatement
-  restoreFromLocal();
-  updateStats();
-  renderTabs();
-  if(Object.keys(tables).length===0) newTable();
-  else if(!currentTableId||!tables[currentTableId]) currentTableId=Object.keys(tables)[0];
-  renderOrder();
-  // 2. Init Firebase en arrière-plan
-  setTimeout(()=>{
-    initFirebaseCaisse();
-    syncFromFirebase(); // sync si autre machine
-    setTimeout(listenServeuseOrders, 800);
-  }, 200);
+function togglePwd() {
+  const inp = document.getElementById('pwdInput');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+function logout() {
+  if (!confirm('Se déconnecter de la caisse ?')) return;
+  sessionStorage.removeItem('caisse_auth');
+  document.getElementById('pwdInput').value = '';
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginScreen').style.opacity = '1';
+}
+// Auto-login si session active
+if (sessionStorage.getItem('caisse_auth') === '1') {
+  document.getElementById('loginScreen').style.display = 'none';
+  startCaisse();
 }
 function togglePwd() {
   const inp = document.getElementById('pwdInput');
@@ -612,124 +613,64 @@ const MENU = {
 // ── STATE ──
 const todayKey = () => new Date().toISOString().slice(0,10);
 let historique = [];
-let fbCaisse = null;
-let firebaseReady = false;
+let fbApp_caisse = null;
 
-// ── LOCALSTORAGE (source principale — instantanée) ──
+const FB_CFG = {
+  apiKey:"AIzaSyBZnorgx0FgFzQk-ynMWLWAGblA1797wL8",
+  databaseURL:"https://latte-lounge-caisse-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:"latte-lounge-caisse",
+  appId:"1:864095614648:web:4d827e02772b5b73fca64d"
+};
+
+function getDB(){
+  if(!fbApp_caisse){
+    try{ fbApp_caisse=firebase.app('caisse'); }
+    catch(e){ fbApp_caisse=firebase.initializeApp(FB_CFG,'caisse'); }
+  }
+  return firebase.database(fbApp_caisse);
+}
+
 function saveHisto(){
-  try{ localStorage.setItem('latte_histo_'+todayKey(), JSON.stringify(historique)); }catch(e){}
-  syncFirebase(); // sync Firebase en arrière-plan
+  const key = todayKey().replace(/-/g,'_');
+  try{ getDB().ref('caisse_historique/'+key).set(historique); }catch(e){ console.warn(e); }
 }
 
 function saveTables(){
   try{
     const toSave={};
     Object.entries(tables).forEach(([id,t])=>{
-      toSave[id]={...t, createdAt: t.createdAt ? t.createdAt.toISOString() : new Date().toISOString()};
+      toSave[id]={...t,createdAt:t.createdAt?t.createdAt.toISOString():new Date().toISOString()};
     });
-    localStorage.setItem('latte_tables', JSON.stringify(toSave));
-    localStorage.setItem('latte_meta', JSON.stringify({currentTableId, tableCounter}));
-  }catch(e){}
-  syncFirebase();
+    getDB().ref('caisse_tables_ouvertes').set(Object.keys(toSave).length?toSave:null);
+    getDB().ref('caisse_meta').set({currentTableId,tableCounter});
+  }catch(e){ console.warn(e); }
 }
 
-function restoreFromLocal(){
-  // Restaurer historique
+async function startCaisse(){
   try{
-    const h=JSON.parse(localStorage.getItem('latte_histo_'+todayKey())||'[]');
-    if(Array.isArray(h)) historique=h.filter(o=>o.date===todayKey());
-  }catch(e){}
-  // Restaurer tables
-  try{
-    const t=JSON.parse(localStorage.getItem('latte_tables')||'{}');
-    const m=JSON.parse(localStorage.getItem('latte_meta')||'{}');
-    Object.entries(t).forEach(([id,tbl])=>{
-      tables[id]={...tbl, createdAt:new Date(tbl.createdAt||Date.now())};
-    });
-    if(m.tableCounter) tableCounter=m.tableCounter;
-    if(m.currentTableId && tables[m.currentTableId]) currentTableId=m.currentTableId;
-    console.log('✅ Restauré depuis localStorage:',Object.keys(tables).length,'tables,',historique.length,'commandes');
-  }catch(e){}
-}
-
-// ── FIREBASE (sync secondaire — en arrière-plan) ──
-function initFirebaseCaisse(){
-  if(firebaseReady) return;
-  if(typeof firebase === 'undefined'){ return; }
-  const fbConfig={
-    apiKey:"AIzaSyBZnorgx0FgFzQk-ynMWLWAGblA1797wL8",
-    databaseURL:"https://latte-lounge-caisse-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId:"latte-lounge-caisse",
-    appId:"1:864095614648:web:4d827e02772b5b73fca64d"
-  };
-  try{
-    try{ fbCaisse=firebase.app('caisse'); }
-    catch(e){ fbCaisse=firebase.initializeApp(fbConfig,'caisse'); }
-    firebaseReady=true;
-    console.log('✅ Firebase caisse prêt');
-  }catch(e){ console.warn('Firebase init error:',e); }
-}
-
-function getDb(){
-  if(!firebaseReady) initFirebaseCaisse();
-  if(!firebaseReady) throw new Error('Firebase pas prêt');
-  return firebase.database(fbCaisse);
-}
-
-function syncFirebase(){
-  // Sync en arrière-plan — jamais bloquant
-  setTimeout(()=>{
-    try{
-      const db=getDb();
-      const key=todayKey().replace(/-/g,'_');
-      db.ref('caisse_historique/'+key).set(historique);
-      const toSave={};
-      Object.entries(tables).forEach(([id,t])=>{
-        toSave[id]={...t, createdAt: t.createdAt ? t.createdAt.toISOString() : new Date().toISOString()};
-      });
-      db.ref('caisse_tables_ouvertes').set(Object.keys(toSave).length ? toSave : null);
-      db.ref('caisse_meta').set({currentTableId, tableCounter});
-    }catch(e){ /* Firebase pas dispo - pas grave, localStorage a tout */ }
-  }, 0);
-}
-
-// Restaurer depuis Firebase si localStorage vide (autre machine)
-async function syncFromFirebase(){
-  try{
-    const db=getDb();
     const key=todayKey().replace(/-/g,'_');
-    // Seulement si localStorage est vide
-    if(Object.keys(tables).length===0){
-      const [tablesSnap, metaSnap, histoSnap]=await Promise.all([
-        db.ref('caisse_tables_ouvertes').get(),
-        db.ref('caisse_meta').get(),
-        db.ref('caisse_historique/'+key).get()
-      ]);
-      if(histoSnap.exists()&&Array.isArray(histoSnap.val())){
-        historique=histoSnap.val().filter(o=>o.date===todayKey());
-      }
-      if(tablesSnap.exists()&&tablesSnap.val()){
-        Object.entries(tablesSnap.val()).forEach(([id,t])=>{
-          tables[id]={...t, createdAt:new Date(t.createdAt||Date.now())};
-        });
-      }
-      if(metaSnap.exists()){
-        const m=metaSnap.val();
-        if(m.tableCounter) tableCounter=m.tableCounter;
-        if(m.currentTableId&&tables[m.currentTableId]) currentTableId=m.currentTableId;
-      }
-      if(Object.keys(tables).length>0){
-        console.log('✅ Sync depuis Firebase:',Object.keys(tables).length,'tables');
-        renderTabs(); renderOrder(); updateStats();
-      }
+    const db=getDB();
+    const [hSnap,tSnap,mSnap]=await Promise.all([
+      db.ref('caisse_historique/'+key).get(),
+      db.ref('caisse_tables_ouvertes').get(),
+      db.ref('caisse_meta').get()
+    ]);
+    if(hSnap.exists()&&Array.isArray(hSnap.val()))
+      historique=hSnap.val().filter(o=>o.date===todayKey());
+    if(tSnap.exists()&&tSnap.val())
+      Object.entries(tSnap.val()).forEach(([id,t])=>{
+        tables[id]={...t,createdAt:new Date(t.createdAt||Date.now())};
+      });
+    if(mSnap.exists()){
+      const m=mSnap.val();
+      if(m.tableCounter) tableCounter=m.tableCounter;
+      if(m.currentTableId&&tables[m.currentTableId]) currentTableId=m.currentTableId;
     }
-    if(Object.keys(tables).length===0) newTable();
-    else if(!currentTableId||!tables[currentTableId]) currentTableId=Object.keys(tables)[0];
-    renderTabs(); renderOrder(); updateStats();
-  }catch(e){
-    console.warn('syncFromFirebase échoué:',e);
-    if(Object.keys(tables).length===0) newTable();
-  }
+  }catch(e){ console.warn('Restore error:',e); }
+  updateStats(); renderTabs();
+  if(!Object.keys(tables).length) newTable();
+  else{ if(!currentTableId||!tables[currentTableId]) currentTableId=Object.keys(tables)[0]; renderOrder(); }
+  setTimeout(listenServeuseOrders,500);
 }
 
 // Multi-table state
@@ -786,22 +727,15 @@ function currentTable() { return tables[currentTableId] || null; }
 
 // ── ADD ITEM ──
 function addItem(name, price) {
-  try {
-    if (!currentTableId || !tables[currentTableId]) { newTable(); }
-    const t = currentTable();
-    if (!t) return;
-    if (t.items[name]) t.items[name].qty++;
-    else t.items[name] = { price, qty: 1 };
-    const btn = document.getElementById('btn-' + name);
-    if (btn) { btn.classList.add('flash'); setTimeout(() => btn.classList.remove('flash'), 300); }
-    renderOrder();
-    renderTabs();
-    updateStats();
-    // Sauvegarde Firebase en arrière-plan — ne bloque jamais le menu
-    setTimeout(() => { try{ saveTables(); }catch(e){ console.warn('saveTables:',e); } }, 0);
-  } catch(e) {
-    console.error('addItem error:', e);
-  }
+  if (!currentTableId || !tables[currentTableId]) { newTable(); }
+  const t = currentTable();
+  if (!t) return;
+  if (t.items[name]) t.items[name].qty++;
+  else t.items[name] = { price, qty: 1 };
+  const btn = document.getElementById('btn-' + name);
+  if (btn) { btn.classList.add('flash'); setTimeout(() => btn.classList.remove('flash'), 300); }
+  renderOrder(); renderTabs(); updateStats();
+  saveTables();
 }
 
 // ── RENDER ORDER ──
@@ -1471,7 +1405,7 @@ function sortProducts(mode){
 
 async function get7DaysHistory(){
   // Récupérer les 7 derniers jours depuis Firebase
-  const db=getDb();
+  const db=getDB();
   const days=[];
   const allOrders=[];
   for(let i=0;i<7;i++){
@@ -1642,17 +1576,9 @@ function resetCaisse(){
   const totalJour=historique.reduce((s,o)=>s+o.total,0);
   const nbCommandes=historique.length;
   historique=[]; saveHisto(); updateStats();
-  // Nettoyer localStorage
   try{
-    localStorage.removeItem('latte_histo_'+todayKey());
-    localStorage.removeItem('latte_tables');
-    localStorage.removeItem('latte_meta');
-  }catch(e){}
-  // Nettoyer Firebase
-  try{
-    const db=getDb();
-    db.ref('caisse_tables_ouvertes').remove();
-    db.ref('caisse_meta').remove();
+    getDB().ref('caisse_tables_ouvertes').remove();
+    getDB().ref('caisse_meta').remove();
   }catch(e){}
   closeFermeture();
   alert(`✅ Caisse clôturée !\n\nTotal du jour : ${totalJour} MRU\nCommandes : ${nbCommandes}\n\nCompteurs remis à zéro.`);
