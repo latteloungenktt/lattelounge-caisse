@@ -587,7 +587,7 @@ const MENU = {
     ["Omelette Jambon",130],["Omelette Jambon Fromage",150],
   ],
   "🫀 Kebde": [
-    ["Kebde Petite",200],["Kebde Moyenne",400],["Kebde Grande",600],
+    ["Kebde",0],
   ],
 };
 
@@ -1267,12 +1267,28 @@ function buildMenu() {
     const grid=document.createElement('div'); grid.className='items-grid';
     MENU[cat].forEach(([name,price])=>{
       const btn=document.createElement('button'); btn.className='item-btn'; btn.id='btn-'+name;
-      btn.innerHTML=`<div class="item-name">${name}</div><div class="item-price">${price} MRU</div>`;
-      btn.onclick=()=>addItem(name,price);
+      if(name==='Kebde'){
+        btn.innerHTML=`<div class="item-name">🫀 Kebde</div><div class="item-price">Prix libre</div>`;
+        btn.onclick=()=>addKebde();
+      } else {
+        btn.innerHTML=`<div class="item-name">${name}</div><div class="item-price">${price} MRU</div>`;
+        btn.onclick=()=>addItem(name,price);
+      }
       grid.appendChild(btn);
     });
     sec.appendChild(grid); content.appendChild(sec);
   });
+}
+
+function addKebde(){
+  const input = prompt('💰 Entrez le prix du Kebde (MRU) :');
+  if(input === null || input.trim() === '') return; // annulé
+  const price = parseInt(input.trim());
+  if(isNaN(price) || price <= 0){
+    alert('❌ Prix invalide. Veuillez entrer un nombre.');
+    return;
+  }
+  addItem('Kebde', price);
 }
 
 function updateStats(){
