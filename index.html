@@ -601,6 +601,7 @@ let currentPayMode = null;
 let fbApp_caisse = null;
 let _saveTimer = null;
 let _caisseStarted = false;
+let _localWrite = false;
 
 const FB_CFG = {
   apiKey:"AIzaSyBZnorgx0FgFzQk-ynMWLWAGblA1797wL8",
@@ -672,9 +673,11 @@ function saveTables(){
     try{
       const toSave={};
       Object.entries(tables).forEach(([id,t])=>{ toSave[id]=serializeTable(t); });
+      _localWrite = true; // signaler que la prochaine notif vient de nous
+      setTimeout(()=>{ _localWrite=false; }, 2000); // sécurité: réactiver après 2s
       getDB().ref('caisse_tables_ouvertes').set(Object.keys(toSave).length ? toSave : null);
       getDB().ref('caisse_meta').set({currentTableId, tableCounter, ts:Date.now()});
-    }catch(e){ console.warn('saveTables:',e); }
+    }catch(e){ console.warn('saveTables:',e); _localWrite=false; }
   }, 250);
 }
 
@@ -730,12 +733,12 @@ async function startCaisse(){
     renderOrder();
   }
 
-  // 4. Listener temps réel pour l'historique (mise à jour live sur autre machine)
+  // 4. Listeners temps réel (synchronisation multi-appareils)
+  // a) Historique
   try{
     getDB().ref('caisse_historique/'+key).on('value', snap=>{
       if(snap.exists() && Array.isArray(snap.val())){
         const fresh=snap.val().filter(o=>o && o.date===todayKey());
-        // Ne mettre à jour que si différent (évite boucle)
         if(JSON.stringify(fresh)!==JSON.stringify(historique)){
           historique=fresh;
           updateStats();
@@ -743,6 +746,43 @@ async function startCaisse(){
       }
     });
   }catch(e){ console.warn('Listen histo:',e); }
+
+  // b) Tables ouvertes — synchronisation live entre appareils
+  try{
+    getDB().ref('caisse_tables_ouvertes').on('value', snap=>{
+      // Ignorer si c'est nous qui venons d'écrire (anti-boucle)
+      if(_localWrite){ _localWrite=false; return; }
+      const raw = snap.exists() ? snap.val() : null;
+      const newTables = {};
+      if(raw){
+        Object.entries(raw).forEach(([id,t])=>{ if(t) newTables[id]=deserializeTable(t); });
+      }
+      // Ne mettre à jour que si réellement différent
+      const serializeCurrent = JSON.stringify(Object.entries(tables).map(([id,t])=>[id,serializeTable(t)]));
+      const serializeNew = JSON.stringify(Object.entries(newTables).map(([id,t])=>[id,serializeTable(t)]));
+      if(serializeCurrent !== serializeNew){
+        tables = newTables;
+        // Garder la table courante si elle existe encore, sinon prendre la première
+        if(!currentTableId || !tables[currentTableId]){
+          const ids = Object.keys(tables);
+          currentTableId = ids.length ? ids[0] : null;
+        }
+        renderTabs();
+        renderOrder();
+        updateStats();
+      }
+    });
+  }catch(e){ console.warn('Listen tables:',e); }
+
+  // c) Meta (compteur de tables)
+  try{
+    getDB().ref('caisse_meta').on('value', snap=>{
+      if(snap.exists()){
+        const m=snap.val();
+        if(m.tableCounter) tableCounter=Math.max(tableCounter, m.tableCounter);
+      }
+    });
+  }catch(e){ console.warn('Listen meta:',e); }
 
   // 5. Listener serveuse
   setTimeout(listenServeuseOrders, 500);
