@@ -659,11 +659,33 @@ function deserializeTable(raw){
   };
 }
 
-function saveHisto(){
-  if(sessionStorage.getItem('caisse_auth')!=='1') return; // pas avant login
-  const key = todayKey().replace(/-/g,'_');
-  try{ getDB().ref('caisse_historique/'+key).set(historique); }catch(e){ console.warn('saveHisto:',e); }
+// ════════════════════════════════════════════════════════════
+// SYSTÈME HISTORIQUE BLINDÉ — 100% FIREBASE (append-only)
+// Chaque commande = un nœud Firebase séparé écrit via push().
+// Écriture instantanée sur le cloud, impossible à écraser.
+// Si le PC plante après validation, la commande est déjà sur Firebase.
+// ════════════════════════════════════════════════════════════
+
+// Ajoute une commande à l'historique — écriture Firebase immédiate
+function addOrderToHistory(entry){
+  if(sessionStorage.getItem('caisse_auth')==='1'){
+    const key = todayKey().replace(/-/g,'_');
+    try{
+      const newRef = getDB().ref('caisse_historique/'+key).push();
+      entry._fbKey = newRef.key;            // tag unique
+      historique.push(entry);               // mémoire AVANT l'écriture (anti-doublon robuste)
+      updateStats();
+      newRef.set(entry).catch(e=>console.warn('Écriture Firebase échouée:', e)); // envoi cloud immédiat
+      return;
+    }catch(e){ console.warn('addOrderToHistory:', e); }
+  }
+  // Fallback (non connecté) : mémoire seule
+  historique.push(entry);
+  updateStats();
 }
+
+// saveHisto conservé pour compatibilité — ne réécrit PLUS le tableau entier (supprimé)
+function saveHisto(){ /* déprécié : on utilise addOrderToHistory (push) désormais */ }
 
 // Sauvegarde tables — debounce pour éviter les écritures multiples
 function saveTables(){
@@ -693,11 +715,22 @@ async function startCaisse(){
 
   const key=todayKey().replace(/-/g,'_');
 
-  // 1. Charger l'historique
+  // 1. Charger l'historique (gère ancien format tableau ET nouveau format push)
   try{
     const hSnap=await getDB().ref('caisse_historique/'+key).get();
-    if(hSnap.exists() && Array.isArray(hSnap.val())){
-      historique=hSnap.val().filter(o=>o && o.date===todayKey());
+    historique=[];
+    if(hSnap.exists()){
+      const val=hSnap.val();
+      if(Array.isArray(val)){
+        // Ancien format : tableau
+        val.forEach(o=>{ if(o && o.date===todayKey()) historique.push(o); });
+      } else if(val && typeof val==='object'){
+        // Nouveau format : enfants push() → on itère
+        hSnap.forEach(child=>{
+          const o=child.val();
+          if(o){ o._fbKey=child.key; historique.push(o); }
+        });
+      }
     }
   }catch(e){ console.warn('Load histo:',e); }
 
@@ -734,16 +767,16 @@ async function startCaisse(){
   }
 
   // 4. Listeners temps réel (synchronisation multi-appareils)
-  // a) Historique
+  // a) Historique — child_added : ajoute SEULEMENT les nouvelles commandes, n'efface JAMAIS
   try{
-    getDB().ref('caisse_historique/'+key).on('value', snap=>{
-      if(snap.exists() && Array.isArray(snap.val())){
-        const fresh=snap.val().filter(o=>o && o.date===todayKey());
-        if(JSON.stringify(fresh)!==JSON.stringify(historique)){
-          historique=fresh;
-          updateStats();
-        }
-      }
+    getDB().ref('caisse_historique/'+key).on('child_added', snap=>{
+      const o=snap.val();
+      if(!o) return;
+      // Anti-doublon : ignorer si on a déjà cette commande (par clé Firebase unique)
+      if(historique.some(h=>h._fbKey===snap.key)) return;
+      o._fbKey=snap.key;
+      historique.push(o);
+      updateStats();
     });
   }catch(e){ console.warn('Listen histo:',e); }
 
@@ -1079,9 +1112,8 @@ function closeOrder() {
     payMode: currentPayMode,
     num: historique.length + 1,
   };
-  historique.push(entry);
-  saveHisto();
-  updateStats();
+  // Enregistrement BLINDÉ (push Firebase + backup local) — addOrderToHistory ajoute déjà en mémoire
+  addOrderToHistory(entry);
   // Remove table
   delete tables[currentTableId];
   const ids = Object.keys(tables);
@@ -1366,8 +1398,7 @@ function generateReceipt(orderNum){
 function validate(){
   const total=Object.values(panier).reduce((s,{price,qty})=>s+price*qty,0);
   const orderNum=historique.length+1;
-  historique.push({id:orderNum,date:todayKey(),time:new Date().toLocaleTimeString('fr-FR'),items:Object.entries(panier).map(([name,{price,qty}])=>({name,price,qty})),total});
-  saveHisto(); updateStats();
+  addOrderToHistory({id:orderNum,date:todayKey(),time:new Date().toLocaleTimeString('fr-FR'),items:Object.entries(panier).map(([name,{price,qty}])=>({name,price,qty})),total});
   document.getElementById('modalTotal').textContent=total.toLocaleString('fr-FR');
   document.getElementById('receiptText').textContent=generateReceipt(orderNum);
   document.getElementById('modal').classList.add('open');
@@ -1556,8 +1587,14 @@ async function get7DaysHistory(){
       results[d.key]={label:d.label, orders:[...historique]};
     } else {
       try{
-        const snap=await db.ref('caisse_historique/'+d.key).get();
-        results[d.key]={label:d.label, orders: snap.exists()&&Array.isArray(snap.val()) ? snap.val() : []};
+        const snap=await getDB().ref('caisse_historique/'+d.key).get();
+        let orders=[];
+        if(snap.exists()){
+          const val=snap.val();
+          if(Array.isArray(val)) orders=val.filter(o=>o);
+          else if(val && typeof val==='object') orders=Object.values(val).filter(o=>o);
+        }
+        results[d.key]={label:d.label, orders};
       }catch(e){ results[d.key]={label:d.label, orders:[]}; }
     }
   }));
@@ -1708,14 +1745,18 @@ function openStats(){
 }
 
 function resetCaisse(){
-  if(!confirm('Clôturer la journée et remettre tous les compteurs à zéro ?')) return;
+  if(!confirm('Clôturer la journée et remettre tous les compteurs à zéro ?\n\n⚠️ Cette action efface définitivement les commandes du jour.')) return;
   const totalJour=historique.reduce((s,o)=>s+o.total,0);
   const nbCommandes=historique.length;
-  historique=[]; saveHisto(); updateStats();
+  const key=todayKey().replace(/-/g,'_');
+  historique=[];
+  updateStats();
   try{
+    // Effacer l'historique du jour sur Firebase (nouveau format push)
+    getDB().ref('caisse_historique/'+key).remove();
     getDB().ref('caisse_tables_ouvertes').remove();
     getDB().ref('caisse_meta').remove();
-  }catch(e){}
+  }catch(e){ console.warn('reset Firebase:', e); }
   closeFermeture();
   alert(`✅ Caisse clôturée !\n\nTotal du jour : ${totalJour} MRU\nCommandes : ${nbCommandes}\n\nCompteurs remis à zéro.`);
 }
