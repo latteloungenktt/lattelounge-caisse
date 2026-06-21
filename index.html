@@ -592,7 +592,13 @@ const MENU = {
 };
 
 // ── STATE (déclaré AVANT toute fonction qui l'utilise) ──
-const todayKey = () => new Date().toISOString().slice(0,10);
+// Jour commercial : remise à zéro à 5h du matin (GMT = Mauritanie, UTC+0).
+// Le restaurant ferme à 3h ; les commandes entre minuit et 5h comptent pour la veille.
+const todayKey = () => {
+  const d = new Date();
+  if (d.getUTCHours() < 5) d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0,10);
+};
 let historique = [];
 let tables = {};
 let currentTableId = null;
@@ -1571,15 +1577,16 @@ function sortProducts(mode){
 }
 
 async function get7DaysHistory(){
-  // Récupérer les 7 derniers jours depuis Firebase
-  const db=getDB();
+  // Récupérer les 7 derniers jours depuis Firebase (base = jour commercial, cutoff 5h UTC)
   const days=[];
-  const allOrders=[];
+  const base=new Date();
+  if(base.getUTCHours()<5) base.setUTCDate(base.getUTCDate()-1);
   for(let i=0;i<7;i++){
-    const d=new Date(); d.setDate(d.getDate()-i);
-    const key=d.toISOString().slice(0,10).replace(/-/g,'_');
-    const label=d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
-    days.push({key,label,date:d.toISOString().slice(0,10)});
+    const d=new Date(base); d.setUTCDate(d.getUTCDate()-i);
+    const iso=d.toISOString().slice(0,10);
+    const key=iso.replace(/-/g,'_');
+    const label=d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'});
+    days.push({key,label,date:iso});
   }
   const results={};
   await Promise.all(days.map(async d=>{
