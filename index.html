@@ -615,10 +615,17 @@ const MENU = {
 // ── STATE (déclaré AVANT toute fonction qui l'utilise) ──
 // Jour commercial : remise à zéro à 5h du matin (GMT = Mauritanie, UTC+0).
 // Le restaurant ferme à 3h ; les commandes entre minuit et 5h comptent pour la veille.
+// todayKey() — toujours en UTC, indépendant du fuseau horaire du PC
+// Remise à zéro à 5h UTC (= heure Mauritanie, UTC+0)
 const todayKey = () => {
   const d = new Date();
+  // Utiliser uniquement les heures UTC pour éviter tout décalage lié au PC
   if (d.getUTCHours() < 5) d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0,10);
+  // Construire la date manuellement en UTC (pas toISOString qui peut varier)
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth()+1).padStart(2,'0');
+  const day = String(d.getUTCDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
 };
 let historique = [];
 let tables = {};
@@ -654,11 +661,16 @@ function serializeTable(t){
   return {
     id: t.id,
     name: t.name || 'Table',
-    itemsArr,                       // tableau au lieu d'objet
+    itemsArr,
     kitchenSent: !!t.kitchenSent,
     fromServeuse: !!t.fromServeuse,
     fromWeb: !!t.fromWeb,
     notes: t.notes || '',
+    clientName: t.clientName || '',
+    clientPhone: t.clientPhone || '',
+    typeCommande: t.typeCommande || '',
+    paiement: t.paiement || '',
+    trackingCode: t.trackingCode || '',
     createdAt: t.createdAt ? (t.createdAt.toISOString ? t.createdAt.toISOString() : t.createdAt) : new Date().toISOString()
   };
 }
@@ -683,6 +695,11 @@ function deserializeTable(raw){
     fromServeuse: !!raw.fromServeuse,
     fromWeb: !!raw.fromWeb,
     notes: raw.notes || '',
+    clientName: raw.clientName || '',
+    clientPhone: raw.clientPhone || '',
+    typeCommande: raw.typeCommande || '',
+    paiement: raw.paiement || '',
+    trackingCode: raw.trackingCode || '',
     payMode: null, paid: false,
     createdAt: new Date(raw.createdAt || Date.now())
   };
@@ -697,18 +714,21 @@ function deserializeTable(raw){
 
 // Ajoute une commande à l'historique — écriture Firebase immédiate
 function addOrderToHistory(entry){
-  if(sessionStorage.getItem('caisse_auth')==='1'){
-    const key = todayKey().replace(/-/g,'_');
-    try{
-      const newRef = getDB().ref('caisse_historique/'+key).push();
-      entry._fbKey = newRef.key;            // tag unique
-      historique.push(entry);               // mémoire AVANT l'écriture (anti-doublon robuste)
+  const key = todayKey().replace(/-/g,'_');
+  // ── Toujours tenter l'écriture Firebase si la DB est disponible ──
+  // (l'ancien guard sessionStorage bloquait l'écriture après rechargement sans login)
+  try{
+    const db = getDB();
+    if(db){
+      const newRef = db.ref('caisse_historique/'+key).push();
+      entry._fbKey = newRef.key;
+      historique.push(entry);
       updateStats();
-      newRef.set(entry).catch(e=>console.warn('Écriture Firebase échouée:', e)); // envoi cloud immédiat
+      newRef.set(entry).catch(e=>console.warn('Écriture Firebase échouée:', e));
       return;
-    }catch(e){ console.warn('addOrderToHistory:', e); }
-  }
-  // Fallback (non connecté) : mémoire seule
+    }
+  }catch(e){ console.warn('addOrderToHistory Firebase:', e); }
+  // Fallback : mémoire locale si Firebase indisponible
   historique.push(entry);
   updateStats();
 }
@@ -932,9 +952,49 @@ function renderOrder() {
     document.getElementById('btnPayment').disabled = true;
     return;
   }
-  if(!t.items) t.items = {}; // garde-fou
+  if(!t.items) t.items = {};
   label.innerHTML = `${t.fromWeb ? '📱' : (t.fromServeuse ? '👩‍💼' : '📋')} ${t.name} ${t.kitchenSent ? '<span class="kitchen-badge">Cuisine ✓</span>' : ''}`;
-  // Afficher les notes serveuse si présentes
+
+  // ── Barre d'infos client (commandes web) ──
+  let clientBar = document.getElementById('webClientBar');
+  if(t.fromWeb && (t.clientName||t.clientPhone)){
+    if(!clientBar){
+      clientBar=document.createElement('div');
+      clientBar.id='webClientBar';
+      clientBar.style.cssText='padding:10px 14px;background:rgba(39,174,96,.08);border-bottom:1px solid rgba(39,174,96,.2);font-size:12px;';
+      document.getElementById('orderList').before(clientBar);
+    }
+    const typeLabel = t.typeCommande==='emporter'?'🥡 À emporter':t.typeCommande==='livraison'?'🛵 Livraison':'📱 Web';
+    const phoneHtml = t.clientPhone ? ` · <a href="tel:${t.clientPhone}" style="color:var(--green2);text-decoration:none;">📞 ${t.clientPhone}</a>` : '';
+    const livraisonNote = t.typeCommande==='livraison' ? `<div style="margin-top:4px;color:var(--muted);">📞 Restaurant : <strong style="color:var(--text)">27 17 91 61</strong></div>` : '';
+    const paiementHtml = t.paiement ? `<div style="margin-top:2px;color:var(--muted);">💳 ${t.paiement}</div>` : '';
+    clientBar.innerHTML = `<div style="color:var(--green2);font-weight:700;">${typeLabel} — ${t.clientName||''}${phoneHtml}</div>${paiementHtml}${livraisonNote}`;
+  } else {
+    if(clientBar && clientBar.parentNode) clientBar.parentNode.removeChild(clientBar);
+  }
+
+  // ── Barre de statut (commandes web uniquement) ──
+  let statusBar = document.getElementById('webStatusBar');
+  if(t.fromWeb && t.trackingCode){
+    if(!statusBar){
+      statusBar=document.createElement('div');
+      statusBar.id='webStatusBar';
+      statusBar.style.cssText='padding:10px 14px;background:rgba(27,42,74,.4);border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center;';
+      document.getElementById('orderList').before(statusBar);
+    }
+    const statuts=[
+      {key:'confirme',label:'✅ Confirmer'},
+      {key:'preparation',label:'🍳 En préparation'},
+      {key:'en_livraison',label: t.typeCommande==='emporter'?'🥡 Prête':'🛵 En livraison'},
+      {key:'livre',label:'🎉 Livrée'},
+    ];
+    statusBar.innerHTML='<span style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-right:4px;">Statut :</span>'+
+      statuts.map(s=>`<button onclick="updateWebOrderStatus('${t.trackingCode}','${s.key}')" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">${s.label}</button>`).join('');
+  } else {
+    if(statusBar && statusBar.parentNode) statusBar.parentNode.removeChild(statusBar);
+  }
+
+  // ── Notes ──
   let notesBar = document.getElementById('serveuseNotesBar');
   if(t.fromServeuse && t.notes){
     if(!notesBar){ notesBar=document.createElement('div'); notesBar.id='serveuseNotesBar'; notesBar.style.cssText='padding:6px 14px;background:rgba(184,148,42,.08);border-bottom:1px solid var(--border);font-size:12px;color:var(--gold);'; document.getElementById('orderList').before(notesBar); }
@@ -942,6 +1002,7 @@ function renderOrder() {
   } else {
     if(notesBar && notesBar.parentNode) notesBar.parentNode.removeChild(notesBar);
   }
+
   const items = Object.entries(t.items);
   if (!items.length) {
     list.innerHTML = '<div class="empty-state"><div class="icon">🍽</div>Aucun article.<br>Appuyez sur le menu.</div>';
@@ -1181,12 +1242,14 @@ function listenServeuseOrders(){
     const db=firebase.database(fbApp);
     console.log('✅ Firebase serveuse connecté');
     let isFirstLoad=true;
-    setTimeout(()=>{ isFirstLoad=false; console.log('✅ Serveuse listener actif - nouvelles commandes activées'); }, 2500);
+    // On laisse 1s pour charger l'état existant, puis on accepte les nouvelles commandes
+    setTimeout(()=>{ isFirstLoad=false; console.log('✅ Serveuse listener actif'); }, 1000);
     db.ref('commandes_serveuse').on('child_added',snap=>{
-      console.log('📦 child_added reçu, isFirstLoad='+isFirstLoad);
-      if(isFirstLoad) return;
+      if(isFirstLoad) return; // ignorer uniquement les commandes déjà présentes au démarrage
       const order={...snap.val(),_key:snap.key};
-      console.log('🔔 Nouvelle commande serveuse:', order.serveuse);
+      // Vérifier que la commande a bien des articles (garde-fou anti-Unknown)
+      if(!order || (!order.items && !order.serveuse)) return;
+      console.log('🔔 Nouvelle commande web:', order.typeCommande, order.clientName||order.serveuse);
       showServeuseNotif(order,snap.key);
     });
   }catch(e){
@@ -1207,25 +1270,33 @@ window.supprimerServeuseOrder=function(key){
 
 function showServeuseNotif(order,key){
   try{
-    // Créer une nouvelle table dans le système caisse
     const tableId = (order.fromWeb ? 'W' : 'S') + key.slice(-4);
     const isWeb = !!order.fromWeb;
+    const type = order.typeCommande||'';
 
-    // Nom de la table : différencier web vs serveuse physique
+    // Libellé selon le type de commande
     let tableName;
     if(isWeb){
-      tableName = order.tableNum ? '📱 Web · T'+order.tableNum : '📱 Web · '+order.serveuse;
+      // Récupérer le nom client depuis toutes les sources possibles
+      const nom = order.clientName || order.serveuse || order.nom || '';
+      if(type==='emporter'){
+        tableName = '🥡 À emporter' + (nom ? ' — '+nom : '');
+      } else if(type==='livraison'){
+        tableName = '🛵 Livraison' + (nom ? ' — '+nom : '');
+      } else if(type==='sur_place' && order.tableNum){
+        tableName = '🪑 Table '+order.tableNum;
+      } else {
+        tableName = '📱 Web' + (nom ? ' — '+nom : '');
+      }
     } else {
       tableName = order.serveuse + (order.tableNum ? ' · T'+order.tableNum : '');
     }
 
-    // Convertir les articles au format panier
     const items = {};
     (order.items||[]).forEach(it => {
       items[it.name] = { price: it.price, qty: it.qty };
     });
 
-    // Créer la table
     tables[tableId] = {
       id: tableId,
       name: tableName,
@@ -1237,25 +1308,27 @@ function showServeuseNotif(order,key){
       fromServeuse: true,
       fromWeb: isWeb,
       notes: order.notes || '',
+      // Infos client enrichies
+      clientName: order.clientName || '',
+      clientPhone: order.clientPhone || '',
+      typeCommande: type,
+      paiement: order.paiement || '',
+      trackingCode: order.trackingCode || '',
     };
 
-    // Switcher vers cette table
     currentTableId = tableId;
     renderTabs();
     renderOrder();
-    saveTables(); // persister la table dans Firebase
+    saveTables();
 
-    // Son d'alerte
     try{ playAlert(); }catch(e){}
 
-    // Toast de notification (différencié web vs serveuse)
     if(isWeb){
-      showWebToast(order.tableNum, order.total, order.trackingCode);
+      showWebToast(order.clientName||order.serveuse, type, order.total, order.trackingCode);
     } else {
       showServeuseToast(order.serveuse, order.tableNum, order.total);
     }
 
-    // Supprimer de Firebase après affichage réussi
     supprimerServeuseOrder(key);
 
   }catch(e){
@@ -1279,20 +1352,68 @@ function showServeuseToast(nom, tableNum, total){
   setTimeout(()=>{ if(toast.parentNode) toast.remove(); }, 4000);
 }
 
-function showWebToast(tableNum, total, trackingCode){
+function showWebToast(clientName, typeCommande, total, trackingCode){
   const existing = document.getElementById('webOrderToast');
   if(existing) existing.remove();
   const toast = document.createElement('div');
   toast.id = 'webOrderToast';
   toast.style.cssText = 'position:fixed;top:70px;right:20px;background:var(--navy);border:2px solid #27AE60;border-radius:14px;padding:14px 20px;z-index:800;box-shadow:0 8px 32px rgba(39,174,96,.3);animation:popIn .3s ease;max-width:300px;cursor:pointer;';
+  const typeLabel = typeCommande==='emporter'?'🥡 À emporter':typeCommande==='livraison'?'🛵 Livraison':'📱 Commande web';
   toast.innerHTML = `
     <div style="font-size:11px;color:rgba(255,255,255,.5);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">📱 Commande en ligne</div>
-    <div style="font-family:'Playfair Display',serif;font-size:18px;color:#2ECC71;font-weight:700;">🪑 Table ${tableNum}</div>
-    <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:3px;">${total} MRU · #${trackingCode||''}</div>
+    <div style="font-family:'Playfair Display',serif;font-size:16px;color:#2ECC71;font-weight:700;">${typeLabel}</div>
+    <div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:3px;">👤 ${clientName||'Client'}</div>
+    <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:2px;">${total} MRU · #${trackingCode||''}</div>
     <div style="font-size:11px;color:rgba(39,174,96,.7);margin-top:5px;">→ Ajoutée automatiquement au panneau</div>
   `;
   document.body.appendChild(toast);
   setTimeout(()=>{ if(toast.parentNode) toast.remove(); }, 6000);
+}
+
+// ── MISE À JOUR STATUT COMMANDE WEB ──
+function updateWebOrderStatus(trackingCode, newStatus){
+  if(!trackingCode)return;
+  const statusLabels={confirme:'Confirmée ✅',preparation:'En préparation 🍳',en_livraison:'En livraison 🛵',livre:'Livrée 🎉'};
+  const label=statusLabels[newStatus]||newStatus;
+  if(!confirm('Passer la commande #'+trackingCode+' en : '+label+' ?'))return;
+
+  // Utiliser l'instance Firebase 'serveuse' (déjà initialisée par listenServeuseOrders)
+  let db2;
+  try{
+    const fbApp = firebase.app('serveuse');
+    db2 = firebase.database(fbApp);
+  }catch(e){
+    // Fallback sur l'instance par défaut si 'serveuse' pas encore init
+    try{ db2 = firebase.database(); }
+    catch(e2){ console.warn('Firebase indisponible:', e2); return; }
+  }
+
+  db2.ref('commandes').orderByChild('trackingCode').equalTo(trackingCode).once('value', snap=>{
+    if(!snap.exists()){
+      // Essayer aussi avec getDB() (API moderne)
+      try{
+        const dbMod = getDB();
+        if(dbMod){
+          import('https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js');
+        }
+      }catch(e){}
+      alert('Commande introuvable. Vérifiez que le client a bien validé sa commande.');
+      return;
+    }
+    const key = Object.keys(snap.val())[0];
+    db2.ref('commandes/'+key+'/status').set(newStatus).then(()=>{
+      const bar=document.getElementById('webStatusBar');
+      if(bar){
+        const prev=bar.querySelector('.status-done'); if(prev)prev.remove();
+        const done=document.createElement('div');
+        done.className='status-done';
+        done.style.cssText='font-size:12px;color:var(--green2);font-weight:700;margin-top:6px;width:100%;padding:4px 0;';
+        done.textContent='✅ '+label+' — client notifié en temps réel';
+        bar.appendChild(done);
+        setTimeout(()=>{ if(done.parentNode)done.remove(); }, 4000);
+      }
+    }).catch(e=>{ alert('Erreur mise à jour : '+e.message); });
+  });
 }
 
 window.ignorerServeuseCommande=function(){
@@ -1457,7 +1578,7 @@ function generateReceipt(orderNum){
 function validate(){
   const total=Object.values(panier).reduce((s,{price,qty})=>s+price*qty,0);
   const orderNum=historique.length+1;
-  addOrderToHistory({id:orderNum,date:todayKey(),time:new Date().toLocaleTimeString('fr-FR'),items:Object.entries(panier).map(([name,{price,qty}])=>({name,price,qty})),total});
+  addOrderToHistory({id:orderNum,date:todayKey(),time:new Date().toLocaleTimeString('fr-FR'),items:Object.entries(panier).map(([name,{price,qty}])=>({name,price,qty,subtotal:price*qty})),total});
   document.getElementById('modalTotal').textContent=total.toLocaleString('fr-FR');
   document.getElementById('receiptText').textContent=generateReceipt(orderNum);
   document.getElementById('modal').classList.add('open');
