@@ -295,7 +295,7 @@
     <div class="open-orders-bar">
       <div class="open-orders-top">
         <span class="open-orders-label">📋 Tables ouvertes</span>
-        <button class="btn-new-table" onclick="newTable()">＋ Nouvelle table</button>
+        <button class="btn-new-table" onclick="newTable(true)">＋ Nouvelle table</button>
       </div>
       <div class="open-orders-tabs" id="openOrdersTabs"></div>
     </div>
@@ -870,10 +870,36 @@ async function startCaisse(){
   setTimeout(listenServeuseOrders, 500);
 }
 
-function newTable() {
-  tableCounter++;
-  const id = 'T' + tableCounter;
-  tables[id] = { id, name: 'Table ' + tableCounter, items: {}, kitchenSent: false, payMode: null, paid: false, createdAt: new Date() };
+// manual=true  → demande le numéro à l'utilisateur (bouton « Nouvelle table »)
+// manual=false → table de secours automatique (démarrage, plus aucune table, etc.)
+function newTable(manual) {
+  let num;
+  if (manual === true) {
+    let msg = 'Numéro de la nouvelle table :';
+    while (true) {
+      const rep = prompt(msg, '');
+      if (rep === null) return; // annulé : aucune table créée
+      const v = rep.trim();
+      if (!/^[A-Za-z0-9-]{1,8}$/.test(v)) {
+        msg = '⚠️ Numéro invalide (lettres/chiffres, 8 max).\nNuméro de la nouvelle table :';
+        continue;
+      }
+      const exists = Object.keys(tables).some(k => k.toUpperCase() === ('T' + v).toUpperCase());
+      if (exists) {
+        msg = '⚠️ La table ' + v + ' est déjà ouverte.\nChoisis un autre numéro :';
+        continue;
+      }
+      num = v;
+      break;
+    }
+    if (/^\d+$/.test(num)) tableCounter = Math.max(tableCounter, parseInt(num, 10));
+  } else {
+    // Secours : premier numéro libre
+    do { tableCounter++; } while (tables['T' + tableCounter]);
+    num = String(tableCounter);
+  }
+  const id = 'T' + num;
+  tables[id] = { id, name: 'Table ' + num, items: {}, kitchenSent: false, payMode: null, paid: false, createdAt: new Date() };
   currentTableId = id;
   renderTabs();
   renderOrder();
@@ -1219,7 +1245,7 @@ function closeOrder() {
 // ── VALIDATE (legacy - now replaced) ──
 function validate() { openPayment(); }
 function clearOrder() { clearCurrentOrder(); }
-function newOrder() { newTable(); closeModal(); }
+function newOrder() { newTable(true); closeModal(); }
 
 // ── SERVEUSE ORDERS ──
 function listenServeuseOrders(){
