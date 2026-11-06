@@ -113,7 +113,7 @@
   .item-btn.flash { animation: flash .3s ease; }
 
   /* ── ORDER PANEL ── */
-  .order-panel { width: 380px; background: var(--surface); border-left: 2px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; box-shadow: -4px 0 20px rgba(27,42,74,.08); }
+  .order-panel { width: 460px; background: var(--surface); border-left: 2px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; box-shadow: -4px 0 20px rgba(27,42,74,.08); }
   .order-header { padding: 12px 14px 10px; border-bottom: 1px solid var(--border); font-family: 'Playfair Display', serif; font-size: 15px; color: var(--navy); display: flex; justify-content: space-between; align-items: center; background: var(--card); }
   .order-count { background: var(--navy); color: var(--gold2); font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; border-radius: 20px; padding: 2px 10px; }
   .order-list { flex: 1; overflow-y: auto; padding: 8px; scrollbar-width: thin; }
@@ -144,7 +144,10 @@
   .open-orders-bar{padding:8px;background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0;}
   .open-orders-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
   .open-orders-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-weight:600;}
-  .open-orders-tabs{display:flex;flex-wrap:wrap;gap:5px;}
+  .open-orders-tabs{display:flex;flex-wrap:wrap;gap:5px;max-height:170px;overflow-y:auto;padding-right:4px;scrollbar-width:thin;scrollbar-color:var(--gold) transparent;}
+  .open-orders-tabs::-webkit-scrollbar{width:8px;}
+  .open-orders-tabs::-webkit-scrollbar-track{background:var(--surface);border-radius:4px;}
+  .open-orders-tabs::-webkit-scrollbar-thumb{background:var(--gold);border-radius:4px;}
   .order-tab{padding:5px 10px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:4px;}
   .order-tab.active{background:var(--navy);border-color:var(--navy);color:var(--gold2);}
   .order-tab.kitchen-sent{border-color:var(--green);color:var(--green);}
@@ -169,7 +172,13 @@
   .pm-total-lbl{font-size:12px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:2px;}
   .pm-total-val{font-family:'Playfair Display',serif;font-size:28px;color:var(--gold2);font-weight:700;}
   .pm-pay-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;}
-  .pm-pay-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+  .pm-pay-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;}
+  .pm-mixte{border:2px solid var(--navy);border-radius:12px;padding:12px;margin-bottom:16px;background:rgba(27,42,74,.04);}
+  .pm-mixte-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+  .pm-mixte-row label{font-size:13px;font-weight:700;color:var(--navy);}
+  .pm-mixte-row input{width:140px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-family:'DM Mono',monospace;text-align:right;}
+  .pm-mixte-row input:focus{outline:none;border-color:var(--gold);}
+  .pm-mixte-status{font-size:12px;font-weight:600;text-align:center;margin-top:4px;}
   .pm-pay-btn{padding:16px;border:2px solid var(--border);border-radius:12px;background:var(--surface);cursor:pointer;text-align:center;transition:all .2s;}
   .pm-pay-btn:hover{border-color:var(--gold);}
   .pm-pay-btn.selected{border-color:var(--navy);background:rgba(27,42,74,.06);}
@@ -416,6 +425,16 @@
             <div class="pm-pay-label">Cash</div>
             <div class="pm-pay-sub">Paiement espèces</div>
           </div>
+          <div class="pm-pay-btn" id="payMixte" onclick="selectPayMode('mixte')">
+            <div class="pm-pay-icon">📱💵</div>
+            <div class="pm-pay-label">Mixte</div>
+            <div class="pm-pay-sub">Bankily + Cash</div>
+          </div>
+        </div>
+        <div class="pm-mixte" id="pmMixte" style="display:none">
+          <div class="pm-mixte-row"><label for="mixBankily">📱 Montant Bankily</label><input type="number" id="mixBankily" min="0" inputmode="numeric" oninput="onMixInput('bankily')"></div>
+          <div class="pm-mixte-row"><label for="mixCash">💵 Montant Cash</label><input type="number" id="mixCash" min="0" inputmode="numeric" oninput="onMixInput('cash')"></div>
+          <div class="pm-mixte-status" id="mixStatus"></div>
         </div>
       </div>
       <button class="btn-close-order" id="btnCloseOrder" onclick="closeOrder()" style="display:none">✅ Clôturer la commande</button>
@@ -1134,6 +1153,11 @@ function openPayment() {
   currentPayMode = null;
   document.getElementById('payBankily').classList.remove('selected');
   document.getElementById('payCash').classList.remove('selected');
+  document.getElementById('payMixte').classList.remove('selected');
+  document.getElementById('pmMixte').style.display = 'none';
+  document.getElementById('mixBankily').value = '';
+  document.getElementById('mixCash').value = '';
+  document.getElementById('mixStatus').textContent = '';
   document.getElementById('btnPrintInvoice').disabled = false;
   document.getElementById('payModeSection').style.display = 'none';
   document.getElementById('btnCloseOrder').style.display = 'none';
@@ -1154,7 +1178,68 @@ function selectPayMode(mode) {
   currentPayMode = mode;
   document.getElementById('payBankily').classList.toggle('selected', mode === 'bankily');
   document.getElementById('payCash').classList.toggle('selected', mode === 'cash');
-  document.getElementById('btnCloseOrder').style.display = 'block';
+  document.getElementById('payMixte').classList.toggle('selected', mode === 'mixte');
+  document.getElementById('pmMixte').style.display = mode === 'mixte' ? 'block' : 'none';
+  if (mode === 'mixte') {
+    document.getElementById('btnCloseOrder').style.display = 'none';
+    checkMixAmounts();
+    document.getElementById('mixBankily').focus();
+  } else {
+    document.getElementById('btnCloseOrder').style.display = 'block';
+  }
+}
+
+// ── PAIEMENT MIXTE (Bankily + Cash) ──
+function currentTotal() {
+  const t = currentTable(); if (!t) return 0;
+  return Object.values(t.items).reduce((s,v)=>s+v.price*v.qty,0);
+}
+// Quand le caissier tape un montant, l'autre se calcule automatiquement
+function onMixInput(which) {
+  const total = currentTotal();
+  const bEl = document.getElementById('mixBankily'), cEl = document.getElementById('mixCash');
+  if (which === 'bankily') {
+    const b = parseInt(bEl.value, 10);
+    cEl.value = isNaN(b) ? '' : Math.max(0, total - b);
+  } else {
+    const c = parseInt(cEl.value, 10);
+    bEl.value = isNaN(c) ? '' : Math.max(0, total - c);
+  }
+  checkMixAmounts();
+}
+function getMixAmounts() {
+  const b = parseInt(document.getElementById('mixBankily').value, 10);
+  const c = parseInt(document.getElementById('mixCash').value, 10);
+  return { bankily: isNaN(b) ? 0 : b, cash: isNaN(c) ? 0 : c };
+}
+function checkMixAmounts() {
+  const total = currentTotal();
+  const { bankily, cash } = getMixAmounts();
+  const st = document.getElementById('mixStatus');
+  const ok = bankily > 0 && cash > 0 && bankily + cash === total;
+  if (ok) {
+    st.textContent = '✅ ' + bankily + ' + ' + cash + ' = ' + total + ' MRU';
+    st.style.color = 'var(--green)';
+  } else if (bankily + cash !== total) {
+    st.textContent = '⚠ La somme (' + (bankily + cash) + ' MRU) doit être égale au total (' + total + ' MRU)';
+    st.style.color = 'var(--red)';
+  } else {
+    st.textContent = '⚠ Indiquez un montant Bankily et un montant Cash';
+    st.style.color = 'var(--red)';
+  }
+  document.getElementById('btnCloseOrder').style.display = ok ? 'block' : 'none';
+  return ok;
+}
+// Montant payé par Bankily / Cash pour une commande (gère les paiements mixtes)
+function amtBankily(o) {
+  if (o.payMode === 'bankily') return o.total || 0;
+  if (o.payMode === 'mixte') return Number(o.bankilyAmount) || 0;
+  return 0;
+}
+function amtCash(o) {
+  if (o.payMode === 'cash') return o.total || 0;
+  if (o.payMode === 'mixte') return Number(o.cashAmount) || 0;
+  return 0;
 }
 
 function closePaymentModal() {
@@ -1219,6 +1304,7 @@ function closeOrder() {
   const now = new Date(), pad = s => String(s).padStart(2,'0');
   const items = Object.entries(t.items);
   const total = items.reduce((s,[,v])=>s+v.price*v.qty,0);
+  if (currentPayMode === 'mixte' && !checkMixAmounts()) return;
   // Save to history
   const entry = {
     date: todayKey(),
@@ -1229,6 +1315,11 @@ function closeOrder() {
     payMode: currentPayMode,
     num: historique.length + 1,
   };
+  if (currentPayMode === 'mixte') {
+    const mix = getMixAmounts();
+    entry.bankilyAmount = mix.bankily;
+    entry.cashAmount = mix.cash;
+  }
   // Enregistrement BLINDÉ (push Firebase + backup local) — addOrderToHistory ajoute déjà en mémoire
   addOrderToHistory(entry);
   // Remove table
@@ -1571,8 +1662,8 @@ function addKebde(){
 
 function updateStats(){
   document.getElementById('statCount').textContent=historique.length;
-  const bankTotal=historique.filter(o=>o.payMode==='bankily').reduce((s,o)=>s+o.total,0);
-  const cashTotal=historique.filter(o=>o.payMode==='cash').reduce((s,o)=>s+o.total,0);
+  const bankTotal=historique.reduce((s,o)=>s+amtBankily(o),0);
+  const cashTotal=historique.reduce((s,o)=>s+amtCash(o),0);
   document.getElementById('statTotal').textContent=historique.reduce((s,o)=>s+o.total,0).toLocaleString('fr-FR')+' MRU';
   const sb=document.getElementById('statBankily'); if(sb) sb.textContent='📱 '+bankTotal+' MRU';
   const sc=document.getElementById('statCash'); if(sc) sc.textContent='💵 '+cashTotal+' MRU';
@@ -1818,8 +1909,8 @@ async function renderWeekStats(){
   days.forEach(d=>{
     const orders=results[d.key].orders;
     const total=orders.reduce((s,o)=>s+o.total,0);
-    const bankily=orders.filter(o=>o.payMode==='bankily').reduce((s,o)=>s+o.total,0);
-    const cash=orders.filter(o=>o.payMode==='cash').reduce((s,o)=>s+o.total,0);
+    const bankily=orders.reduce((s,o)=>s+amtBankily(o),0);
+    const cash=orders.reduce((s,o)=>s+amtCash(o),0);
     const count=orders.length;
     totalWk+=total; bankilyWk+=bankily; cashWk+=cash; countWk+=count;
     const pct=Math.round((total/maxTotal)*100);
@@ -1927,8 +2018,8 @@ function openStats(){
   const now=new Date();
   document.getElementById('statsDate').textContent=now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).toUpperCase();
   // Remplir onglet aujourd'hui
-  const bankily=historique.filter(o=>o.payMode==='bankily').reduce((s,o)=>s+o.total,0);
-  const cash=historique.filter(o=>o.payMode==='cash').reduce((s,o)=>s+o.total,0);
+  const bankily=historique.reduce((s,o)=>s+amtBankily(o),0);
+  const cash=historique.reduce((s,o)=>s+amtCash(o),0);
   const total=historique.reduce((s,o)=>s+o.total,0);
   document.getElementById('st-count').textContent=historique.length;
   document.getElementById('st-bankily').textContent=bankily+' MRU';
@@ -1944,7 +2035,7 @@ function openStats(){
           <span style="font-size:12px;font-weight:600;color:var(--navy);">${o.tableName||'Commande'}</span>
           <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--gold);font-weight:700;">${o.total} MRU</span>
         </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:3px;">${o.time} · ${o.payMode==='bankily'?'📱 Bankily':'💵 Cash'}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px;">${o.time} · ${o.payMode==='mixte'?('📱💵 Mixte (Bankily '+amtBankily(o)+' + Cash '+amtCash(o)+')'):(o.payMode==='bankily'?'📱 Bankily':'💵 Cash')}</div>
       </div>`).join('');
   }
   showAnalyticsTab('today');
@@ -2016,8 +2107,9 @@ function generateRapport(){
 
   const bankilyOrders=historique.filter(o=>o.payMode==='bankily');
   const cashOrders=historique.filter(o=>o.payMode==='cash');
-  const totalBankily=bankilyOrders.reduce((s,o)=>s+o.total,0);
-  const totalCash=cashOrders.reduce((s,o)=>s+o.total,0);
+  const mixteOrders=historique.filter(o=>o.payMode==='mixte');
+  const totalBankily=historique.reduce((s,o)=>s+amtBankily(o),0);
+  const totalCash=historique.reduce((s,o)=>s+amtCash(o),0);
   const totalJour=historique.reduce((s,o)=>s+o.total,0);
 
   let r='';
@@ -2038,7 +2130,7 @@ function generateRapport(){
       const tl=`    TOTAL : ${o.total} MRU`; r+=tl+'\n';
     });
     r+=dash+'\n';
-    const stl=`  SOUS-TOTAL BANKILY : ${totalBankily} MRU`; r+=stl+'\n';
+    const stl=`  SOUS-TOTAL BANKILY : ${bankilyOrders.reduce((s,o)=>s+o.total,0)} MRU`; r+=stl+'\n';
   }
   r+='\n'+line+'\n';
 
@@ -2052,9 +2144,24 @@ function generateRapport(){
       const tl=`    TOTAL : ${o.total} MRU`; r+=tl+'\n';
     });
     r+=dash+'\n';
-    const stl=`  SOUS-TOTAL CASH : ${totalCash} MRU`; r+=stl+'\n';
+    const stl=`  SOUS-TOTAL CASH : ${cashOrders.reduce((s,o)=>s+o.total,0)} MRU`; r+=stl+'\n';
   }
   r+='\n'+line+'\n';
+
+  // Paiements mixtes (Bankily + Cash)
+  if(mixteOrders.length){
+    r+=center('PAIEMENTS MIXTES (BANKILY + CASH)')+'\n'+dash+'\n';
+    mixteOrders.forEach((o,i)=>{
+      r+=`\n  #${String(i+1).padStart(3,'0')} — ${o.tableName||'Table'} — ${o.time}\n`;
+      o.items.forEach(it=>{ const left=`    ${it.name.substring(0,24)} ×${it.qty}`,right=`${it.subtotal} MRU`; r+=left.padEnd(W-right.length)+right+'\n'; });
+      r+=`    TOTAL : ${o.total} MRU (Bankily ${amtBankily(o)} + Cash ${amtCash(o)})\n`;
+    });
+    r+=dash+'\n';
+    r+=`  SOUS-TOTAL MIXTE : ${mixteOrders.reduce((s,o)=>s+o.total,0)} MRU\n`;
+    r+=`    dont Bankily : ${mixteOrders.reduce((s,o)=>s+amtBankily(o),0)} MRU\n`;
+    r+=`    dont Cash    : ${mixteOrders.reduce((s,o)=>s+amtCash(o),0)} MRU\n`;
+    r+='\n'+line+'\n';
+  }
   r+=center(`TOTAL JOURNEE : ${totalJour} MRU`)+'\n';
   r+=line+'\n'+center('Fin du rapport')+'\n'+line;
   return r;
