@@ -160,6 +160,9 @@
   .btn-payment{width:100%;padding:13px;background:var(--green);border:none;border-radius:10px;font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:#fff;cursor:pointer;letter-spacing:1px;transition:all .2s;margin-bottom:8px;}
   .btn-payment:hover{filter:brightness(1.1);}
   .btn-payment:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-ready{width:100%;padding:13px;background:#E67E22;border:none;border-radius:10px;font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:#fff;cursor:pointer;letter-spacing:1px;transition:all .2s;margin-bottom:8px;}
+  .btn-ready:hover{filter:brightness(1.1);}
+  .btn-ready.done{background:var(--green);}
 
   /* ── PAYMENT MODAL ── */
   .payment-modal{background:var(--surface);color:var(--text);border-radius:16px;width:460px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 30px 80px rgba(27,42,74,.3);animation:popIn .3s cubic-bezier(.34,1.56,.64,1);}
@@ -322,6 +325,7 @@
         <div class="total-amount" id="totalDisplay">0 <span class="total-mru">MRU</span></div>
       </div>
       <button class="btn-validate" id="btnKitchen" onclick="printKitchenTicket()" disabled>🍳 Envoyer en cuisine</button>
+      <button class="btn-ready" id="btnReady" onclick="markOrderReady()" style="display:none">🔔 Commande prête</button>
       <button class="btn-payment" id="btnPayment" onclick="openPayment()" disabled>💳 Paiement</button>
       <button class="btn-clear" onclick="clearCurrentOrder()">🔄 Vider</button>
     </div>
@@ -545,7 +549,7 @@ const MENU = {
   ],
   "🥤 Jus": [
     ["Jus D'Orange",100],["Jus De Citron",100],["Jus De Pomme",100],
-    ["Jus D'Avocat",150],["Jus De Mangue",100],["Jus De Pastèque",100],
+    ["Jus D'Avocat",150],["Jus De Mangue",150],["Jus De Pastèque",100],
     ["Jus D'Ananas",100],["Jus De Kiwi",100],
     ["Jus De Banane",100],["Jus De Gingembre",100],["Jus De Concombre",100],
     ["Jus De Cocktail",150],
@@ -690,6 +694,10 @@ function serializeTable(t){
     typeCommande: t.typeCommande || '',
     paiement: t.paiement || '',
     trackingCode: t.trackingCode || '',
+    serveuseKey: t.serveuseKey || '',
+    serveuseName: t.serveuseName || '',
+    tableNum: t.tableNum || '',
+    ready: !!t.ready,
     createdAt: t.createdAt ? (t.createdAt.toISOString ? t.createdAt.toISOString() : t.createdAt) : new Date().toISOString()
   };
 }
@@ -719,6 +727,10 @@ function deserializeTable(raw){
     typeCommande: raw.typeCommande || '',
     paiement: raw.paiement || '',
     trackingCode: raw.trackingCode || '',
+    serveuseKey: raw.serveuseKey || '',
+    serveuseName: raw.serveuseName || '',
+    tableNum: raw.tableNum || '',
+    ready: !!raw.ready,
     payMode: null, paid: false,
     createdAt: new Date(raw.createdAt || Date.now())
   };
@@ -940,7 +952,7 @@ function renderTabs() {
     if(!t) return;
     if(!t.items) t.items = {}; // garde-fou
     const tab = document.createElement('div');
-    const icon = t.fromWeb ? '📱' : (t.fromServeuse ? '👩‍💼' : (t.kitchenSent ? '🍳' : '📋'));
+    const icon = t.ready ? '✅' : t.fromWeb ? '📱' : (t.fromServeuse ? '👩‍💼' : (t.kitchenSent ? '🍳' : '📋'));
     const total = Object.values(t.items).reduce((s,v)=>s+(v.price*v.qty),0);
     tab.className = 'order-tab' + (t.id === currentTableId ? ' active' : '') + (t.kitchenSent ? ' kitchen-sent' : '');
     if(t.fromWeb && t.id !== currentTableId) tab.style.borderColor = 'var(--green)';
@@ -987,6 +999,7 @@ function addItem(name, price) {
 // ── RENDER ORDER ──
 function renderOrder() {
   const t = currentTable();
+  updateReadyButton();
   const list = document.getElementById('orderList');
   const label = document.getElementById('currentTableLabel');
   if (!t) {
@@ -1078,6 +1091,35 @@ function renderOrder() {
   document.getElementById('orderCount').textContent = qty;
   document.getElementById('btnKitchen').disabled = false;
   document.getElementById('btnPayment').disabled = false;
+}
+
+// ── COMMANDE PRÊTE (alerte la serveuse qui a envoyé la commande) ──
+function updateReadyButton() {
+  const b = document.getElementById('btnReady'); if (!b) return;
+  const t = currentTable();
+  if (!t || !t.serveuseKey || t.fromWeb) { b.style.display = 'none'; return; }
+  b.style.display = 'block';
+  b.classList.toggle('done', !!t.ready);
+  const who = t.serveuseName || 'serveuse';
+  b.textContent = t.ready ? ('✅ ' + who + ' alertée — renvoyer') : ('🔔 Commande prête → ' + who);
+}
+
+function markOrderReady() {
+  const t = currentTable(); if (!t || !t.serveuseKey) return;
+  const total = Object.values(t.items || {}).reduce((s, v) => s + v.price * v.qty, 0);
+  const rec = {
+    serveuse: t.serveuseName || '',
+    tableNum: t.tableNum || '',
+    tableName: t.name || '',
+    total,
+    ts: Date.now()
+  };
+  getDB().ref('commandes_pretes/' + t.serveuseKey).set(rec).then(() => {
+    t.ready = true;
+    renderOrder(); renderTabs(); saveTables();
+  }).catch(e => {
+    alert('❌ Alerte non envoyée : ' + (e && e.message ? e.message : 'vérifiez la connexion'));
+  });
 }
 
 function changeQty(name, delta) {
@@ -1431,6 +1473,10 @@ function showServeuseNotif(order,key){
       typeCommande: type,
       paiement: order.paiement || '',
       trackingCode: order.trackingCode || '',
+      serveuseKey: isWeb ? '' : key,
+      serveuseName: isWeb ? '' : (order.serveuse || ''),
+      tableNum: order.tableNum || '',
+      ready: false,
     };
 
     currentTableId = tableId;
@@ -2054,6 +2100,7 @@ function resetCaisse(){
     getDB().ref('caisse_historique/'+key).remove();
     getDB().ref('caisse_tables_ouvertes').remove();
     getDB().ref('caisse_meta').remove();
+    getDB().ref('commandes_pretes').remove();
   }catch(e){ console.warn('reset Firebase:', e); }
   closeFermeture();
   alert(`✅ Caisse clôturée !\n\nTotal du jour : ${totalJour} MRU\nCommandes : ${nbCommandes}\n\nCompteurs remis à zéro.`);
